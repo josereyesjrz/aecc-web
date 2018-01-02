@@ -1,0 +1,4 @@
+###TODO:
+
+#POSTS:
+SQL add CATEGORIES, TAGS, etc
