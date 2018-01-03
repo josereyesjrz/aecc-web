@@ -5,5 +5,6 @@ Development of the new AECC website. Project for software engineering class.
 
 pip install Flask
 pip install Flask-WTF
+pip install Flask-Gravatar
 #Para encriptar passwords
 pip install passlib
