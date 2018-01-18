@@ -1,4 +1,7 @@
-###TODO:
+# TODO:
 
-#POSTS:
-SQL add CATEGORIES, TAGS, etc
+## POSTS:
+* SQL
+	* CATEGORIES
+	* TAGS
+	* etc
