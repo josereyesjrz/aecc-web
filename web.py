@@ -167,38 +167,44 @@ def register():
 def login():
 	if request.method == 'POST':
 		logging_with_email = False
+		validCredentials = False
 		# Get Form Fields
 		studentID = str(request.form['username'])
 		if studentID.endswith("@upr.edu"):
 			logging_with_email = True
+			validCredentials = True
 		elif not studentID.isdigit():
-			flash("Invalid Student Number")
-			return redirect(url_for('index'))
-		password_candidate = request.form['password']
-
-		# Get user by username
-		result = query_db("SELECT * FROM users WHERE email = ?", (studentID,), True) if logging_with_email else query_db("SELECT * FROM users WHERE studentID = ?", (studentID,), True)
-		if result != None:
-			# Get stored hash
-			password = result['password']
-
-			# Compare Passwords
-			if sha256_crypt.verify(password_candidate, password):
-				# Passed
-				session['logged_in'] = True
-				session['username'] = result['studentFirstName']
-				session['id'] = result['id']
-				session['email'] = result['email']
-
-				flash('You are now logged in', 'success')
-				return redirect(url_for('dashboard'))
-			else:
-				error = 'Username and/or Password is incorrect'
-				return render_template('login.html', error=error)
-			# Close connection
+			flash("Invalid username or password.", 'danger')
 		else:
-			error = 'Username and/or Password is incorrect'
-			return render_template('login.html', error=error)
+			validCredentials = True
+		if validCredentials:
+			password_candidate = request.form['password']
+
+			# Get user by username
+			result = query_db("SELECT * FROM users WHERE email = ?", (studentID,), True) if logging_with_email else query_db("SELECT * FROM users WHERE studentID = ?", (studentID,), True)
+			if result != None:
+				# Get stored hash
+				password = result['password']
+
+				# Compare Passwords
+				if sha256_crypt.verify(password_candidate, password):
+					# Passed
+					session['logged_in'] = True
+					session['username'] = result['studentFirstName']
+					session['id'] = result['id']
+					session['email'] = result['email']
+
+					flash('You are now logged in', 'success')
+					return redirect(url_for('dashboard'))
+				else:
+					flash("Invalid username or password.", 'danger')
+					#error = 'Username and/or Password is incorrect'
+					#return render_template('login.html', error=error)
+				# Close connection
+			else:
+				flash("Invalid username or password.", 'danger')
+				#error = 'Username and/or Password is incorrect'
+				#return render_template('login.html', error=error)
 
 	return render_template('login.html')
 
