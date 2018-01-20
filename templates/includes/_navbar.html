@@ -18,7 +18,13 @@
 
           <ul class="nav navbar-nav navbar-right">
             {% if session.logged_in %}
-              <li><a href="/dashboard"><img src="{{ session.email | gravatar }}" height="25" width="25"></a></li>
+              <li><a href="/dashboard">
+                {% if session.customPicture == "FALSE" %}
+                <img src="{{ session.email | gravatar }}" height="25" width="25">
+                {% else %}
+                <img src="{{ url_for('static', filename='uploads/'+session.customPicture) }}" height="25" width="25">
+                {% endif %}
+                </a></li>
               <li><a href="/dashboard">Dashboard</a></li>
               <li><a href="/logout">Logout</a></li>
             {% else %}

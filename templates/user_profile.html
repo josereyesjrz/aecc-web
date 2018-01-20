@@ -1,0 +1,11 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+  <h1>{{user['studentFirstName'] + " " + user['studentLastName']}}</h1>
+  	{% if user['customPicture'] == "FALSE" %}
+  	<img src="{{ user['email'] | gravatar }}" height="100" width="100">
+	{% else %}
+	<img src="{{ url_for('static', filename='uploads/'+user['customPicture']) }}" height="100" width="100">
+	{% endif %}
+  <p>Biography</p>
+{% endblock %}

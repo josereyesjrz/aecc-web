@@ -1,4 +1,4 @@
-from flask import Flask, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory
+from flask import Flask, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory, abort
 import sqlite3
 from datetime import datetime
 from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
@@ -7,14 +7,15 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 from passlib.hash import sha256_crypt
 from functools import wraps
-#Email Validation
-from validate_email import validate_email
 #Upload
 import os
+import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
 #Transactions
 import braintree
+#Cache
+from nocache import nocache
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -70,8 +71,6 @@ def query_db(query, args=(), one=False):
 	cur.close()
 	return (rv[0] if rv else None) if one else rv
 
-#Articles = Articles()
-
 # Index
 @app.route('/')
 def index():
@@ -84,7 +83,7 @@ def page_not_found(e):
 # Members
 @app.route('/members')
 def members():
-	results = query_db("SELECT id, studentFirstName, studentLastName FROM users WHERE status = 'ACTIVE'")
+	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'ACTIVE'")
 	return render_template('members.html', results=results)
 
 
@@ -138,16 +137,16 @@ def register():
 	form = RegisterForm(request.form)
 	if request.method == 'POST' and form.validate():
 		email = form.email.data.lower()
-		if email.endswith("@upr.edu") and validate_email(email, verify=True):
+		if email.endswith("@upr.edu"):
 			studentID = str(form.studentID.data)
 			phoneNumber = str(form.phoneNumber.data)
 
 			# Check that username and email are unique
-			if len(query_db("SELECT * FROM users WHERE studentID = ?", [studentID])):
+			if len(query_db("SELECT id FROM users WHERE studentID = ?", [studentID])):
 				flash('Student Number already taken.', 'danger')
-			elif len(query_db("SELECT * FROM users WHERE email = ?", [email])):
+			elif len(query_db("SELECT id FROM users WHERE email = ?", [email])):
 				flash('Email address already taken.', 'danger')
-			elif len(query_db("SELECT * FROM users WHERE phoneNumber = ?", [phoneNumber])):
+			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
 				flash('Phone Number already taken.', 'danger')
 			else:
 				password = sha256_crypt.encrypt(str(form.password.data))
@@ -181,7 +180,7 @@ def login():
 			password_candidate = request.form['password']
 
 			# Get user by username
-			result = query_db("SELECT * FROM users WHERE email = ?", (studentID,), True) if logging_with_email else query_db("SELECT * FROM users WHERE studentID = ?", (studentID,), True)
+			result = query_db("SELECT id,studentFirstName,email,password,customPicture FROM users WHERE email = ?", (studentID,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture FROM users WHERE studentID = ?", (studentID,), True)
 			if result != None:
 				# Get stored hash
 				password = result['password']
@@ -193,6 +192,7 @@ def login():
 					session['username'] = result['studentFirstName']
 					session['id'] = result['id']
 					session['email'] = result['email']
+					session['customPicture'] = result['customPicture']
 
 					flash('You are now logged in', 'success')
 					return redirect(url_for('dashboard'))
@@ -275,9 +275,9 @@ def allowed_file(filename):
 # === PROFILE === #
 
 class ProfileForm(FlaskForm):
+	uploadFile = FileField("Upload Avatar")
 	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
-	email = EmailField('Email', [validators.Length(min=6, max=35), validators.Email()])
 	password = PasswordField('Current Password', [
 		validators.DataRequired()
 	])
@@ -286,30 +286,48 @@ class ProfileForm(FlaskForm):
 	])
 	confirm = PasswordField('Confirm Password')
 
-
 #Edit profile
 @app.route('/edit_profile/<string:id>', methods=['GET', 'POST'])
 @is_logged_in
 @is_allowed_edit
+@nocache
 def edit_profile(id):
 	# Get post by id
+	# TODO CAMBIAR EL QUERY PA QUE NO COJA TO
 	result = query_db("SELECT * FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
-		return redirect(url_for('index'))
+		return render_template('404.html')
 	# Get form
 	form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
 		if sha256_crypt.verify(form.password.data, result['password']):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
+			f = request.files['uploadFile']
+			if f != None:		
+				filename = secure_filename(f.filename)
+				filename = str(id)+"."+str(filename.split('.')[-1])
+				for img in glob.glob(app.config['UPLOAD_FOLDER'] + "/" + str(id)+".*"):
+					if os.path.exists(img):
+						os.remove(img)
+				f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 			cur = get_db().cursor()
 			if form.new_password.data != "":
 				new_password = sha256_crypt.encrypt(str(form.new_password.data))
-				# Execute
-				cur.execute("UPDATE users SET email=?, studentFirstName=?, studentLastName=?, password=? WHERE id=?",(studentFirstName, studentLastName, new_password, id))
+				#Execute
+				if f != None:
+					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, new_password, filename, id))
+					session['customPicture'] = filename
+				else:
+					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=? WHERE id=?",(studentFirstName, studentLastName, new_password, id))
 			else:
-				cur.execute("UPDATE users SET email=?, studentFirstName=?, studentLastName=? WHERE id=?",(studentFirstName, studentLastName, id))
+				if f != None:
+					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, filename, id))
+					session['customPicture'] = filename
+				else:
+					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=? WHERE id=?",(studentFirstName, studentLastName, id))				
+
 			session['username'] = studentFirstName
 			# Commit to DB
 			get_db().commit()
@@ -320,6 +338,16 @@ def edit_profile(id):
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
 	return render_template('edit_profile.html', form=form)
+
+@app.route('/user/<string:id>')
+def user_profile(id):
+	# Get post by id
+	user = query_db("SELECT studentFirstName,studentLastName,email,biography,customPicture FROM users WHERE id = ?", [id], True)
+	# TODO: Query the courses taken by that user
+	if user == None:
+		flash('User does not exist in our database', 'danger')
+		return render_template('404.html')
+	return render_template('user_profile.html', user=user)
 
 # class TagListField(Field):
 #     widget = TextInput()

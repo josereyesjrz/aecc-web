@@ -3,6 +3,13 @@
 {% block body %}
   <h1>Members</h1>
   {% for result in results %}
-  <p><a href="{{url_for('edit_profile', id=result['id'])}}">{{result['studentFirstName'] + " " + result['studentLastName']}}</a></p>
+  <ul>
+  	{% if result['customPicture'] == "FALSE" %}
+  	<img src="{{ result['email'] | gravatar }}" height="25" width="25">
+	{% else %}
+	<img src="{{ url_for('static', filename='uploads/'+result['customPicture']) }}" height="25" width="25">
+	{% endif %}
+  	<a href="{{url_for('user_profile', id=result['id'])}}"> {{result['studentFirstName'] + " " + result['studentLastName']}}</a>
+  </ul>
   {% endfor %}
 {% endblock %}
