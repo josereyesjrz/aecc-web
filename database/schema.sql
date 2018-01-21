@@ -1,11 +1,11 @@
 drop table if exists users;
 create table users (
 	id integer primary key autoincrement,
-	email text not null unique,
-	studentID char(9) not null unique,
+	email text not null,
+	studentID char not null unique,
 	studentFirstName text not null,
 	studentLastName text not null,
-	phoneNumber char(10) not null unique,
+	phoneNumber char(10),
 	password text not null,
 	priviledge text not null default "MEMBER",
 	status text not null default "PENDING",
@@ -13,8 +13,12 @@ create table users (
 	confirmed_on text,
 	customPicture text not null default "FALSE",
 	biography text,
-	date_created text not null
+	date_created text not null default datetime('now')
 );
+
+-- DEFAULT ADMIN PASSWORD: aecc-website
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge) values ("aecc@gmail.com", "presidente", "Jeffrey", "Chan", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN");
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge) values ("aecc@gmail.com", "vicepresidente", "Alejandro", "Vega", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN");
 
 drop table if exists courses;
 create table courses (

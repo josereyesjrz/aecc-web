@@ -22,8 +22,8 @@ MAIL_USE_SSL = False
 # gmail authentication
 #MAIL_USERNAME = os.environ['APP_MAIL_USERNAME']
 #MAIL_PASSWORD = os.environ['APP_MAIL_PASSWORD']
-MAIL_USERNAME = 'noreply@aecc.com'
-MAIL_PASSWORD = 'aeccpassword'
+MAIL_USERNAME = 'websiteaecc@gmail.com'
+MAIL_PASSWORD = 'aeccwebsite2018'
 
 # mail accounts
-MAIL_DEFAULT_SENDER = 'noreply@aecc.com.com'
+#MAIL_DEFAULT_SENDER = 'noreply@aecc.com'

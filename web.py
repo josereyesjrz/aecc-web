@@ -22,7 +22,7 @@ app = Flask(__name__)
 app.config.from_pyfile('config.py')
 mail = Mail(app)
 
-directivaMemberList = ['president', 'vicepresident', 'secretary', 'treasury', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
+directivaMemberList = ['presidente', 'vicepresidente', 'secretary', 'treasurer', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
 DATABASE = 'database/database.db'
 
 gravatar = Gravatar(app,
@@ -108,6 +108,12 @@ def members():
 	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'ACTIVE'")
 	return render_template('members.html', results=results)
 
+# Members
+@app.route('/about')
+def about():
+	directivaMembers = query_db("SELECT studentID,studentFirstName,studentLastName,customPicture FROM users WHERE priviledge = 'ADMIN'")
+	return render_template('about.html', directiva=directivaMembers)
+
 
 # Articles
 @app.route('/posts')
@@ -176,7 +182,7 @@ def register():
 				lastName = form.studentLastName.data
 				# Execute query
 				paymentStatus = "ACTIVE" if form.payNow.data else "PENDING"
-				insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status", "date_created"), (email, studentID, password, firstName, lastName, phoneNumber, paymentStatus, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+				insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, firstName, lastName, phoneNumber))
 				
 				# Generate and Send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
@@ -376,14 +382,15 @@ class ProfileForm(FlaskForm):
 def edit_profile(id):
 	# Get post by id
 	# TODO CAMBIAR EL QUERY PA QUE NO COJA TO
-	result = query_db("SELECT * FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,password FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# Get form
 	form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
-		if sha256_crypt.verify(form.password.data, result['password']):
+		# Admin can bypass password verification or user must match their password
+		if session['id'] != int(id) or sha256_crypt.verify(form.password.data, result['password']):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
@@ -401,17 +408,18 @@ def edit_profile(id):
 				#Execute
 				if filename != "":
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, new_password, filename, id))
-					session['customPicture'] = filename
 				else:
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=? WHERE id=?",(studentFirstName, studentLastName, new_password, id))
 			else:
 				if filename != "":
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, filename, id))
-					session['customPicture'] = filename
 				else:
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=? WHERE id=?",(studentFirstName, studentLastName, id))				
-
-			session['username'] = studentFirstName
+			# If admin is editing the profile, only change the session variables for the user
+			if session['id'] == id:
+				session['username'] = studentFirstName
+				if filename != "":
+					session['customPicture'] = filename
 			# Commit to DB
 			get_db().commit()
 			#Close connection
