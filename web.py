@@ -22,7 +22,7 @@ app = Flask(__name__)
 app.config.from_pyfile('config.py')
 mail = Mail(app)
 
-directivaMemberList = ['presidente', 'vicepresidente', 'secretary', 'treasurer', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
+directivaMemberList = ['president', 'vicepresident', 'secretary', 'treasurer', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
 DATABASE = 'database/database.db'
 
 gravatar = Gravatar(app,
@@ -145,7 +145,6 @@ class RegisterForm(FlaskForm):
 	email = EmailField('Email', [validators.DataRequired(), validators.Length(min=10, max=35), validators.Email()])
 	studentFirstName = StringField('First Name', [validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	studentLastName = StringField('Last Name', [validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
-
 	phoneNumber = StringField('Phone Number', [validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
 	# Add validators: At least 1 number, at least 1 uppercase
 	password = PasswordField('Password', [
@@ -172,7 +171,7 @@ def register():
 			# Check that username and email are unique
 			if len(query_db("SELECT id FROM users WHERE studentID = ?", [studentID])):
 				flash('Student Number already taken.', 'danger')
-			elif len(query_db("SELECT id FROM users WHERE email = ?", [email])):
+			elif len(query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email])):
 				flash('Email address already taken.', 'danger')
 			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
 				flash('Phone Number already taken.', 'danger')
@@ -181,9 +180,11 @@ def register():
 				firstName = form.studentFirstName.data
 				lastName = form.studentLastName.data
 				# Execute query
-				paymentStatus = "ACTIVE" if form.payNow.data else "PENDING"
-				insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, firstName, lastName, phoneNumber))
-				
+				# Pay now
+				if form.payNow.data:
+					insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, firstName, lastName, phoneNumber, "ACTIVE"))
+				else:
+					insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, firstName, lastName, phoneNumber))
 				# Generate and Send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
 				confirm_url = url_for('confirm_email', token=token, _external=True)
@@ -191,7 +192,15 @@ def register():
 				subject = "Please confirm your email"
 				emailToken.send_email(email, subject, html)
 
-				flash('You are now registered and can log in. A confirmation email has been sent to verify your account.', 'success')
+				flash('You are now registered and logged in. A confirmation email has been sent to verify your account.', 'success')
+				userID = query_db("SELECT id FROM users WHERE studentID=?", (studentID,), True)
+				session['id'] = userID['id']
+				session['logged_in'] = True
+				session['username'] = firstName
+				session['email'] = email
+				session['customPicture'] = "FALSE"
+				session['confirmation'] = 0
+				session['admin'] = False
 				return redirect(url_for('unconfirmed'))
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
@@ -215,7 +224,7 @@ def login():
 			password_candidate = request.form['password']
 
 			# Get user by username
-			result = query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation FROM users WHERE email = ?", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation FROM users WHERE studentID = ?", (username,), True)
+			result = query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
 				# Get stored hash
 				password = result['password']
@@ -228,7 +237,8 @@ def login():
 					session['id'] = result['id']
 					session['email'] = result['email']
 					session['customPicture'] = result['customPicture']
-					session['confirmation'] = False if str(result['confirmation']) == "False" else True
+					session['confirmation'] = result['confirmation']
+					session['admin'] = True if result['priviledge'] == "ADMIN" else False
 
 					#flash('You are now logged in', 'success')
 					return redirect(url_for('dashboard'))
@@ -294,19 +304,22 @@ def confirm_email(token):
 		email = emailToken.confirm_token(token)
 	except:
 		flash('The confirmation link is invalid or has expired.', 'danger')
-	user = query_db("SELECT confirmation,confirmed_on FROM users WHERE email=?", (email,), True).first_or_404()
-	if user['confirmed']:
-		flash('Account already confirmed. Please login.', 'success')
+	user = query_db("SELECT confirmation,confirmed_on FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+	if user != None:
+		if user['confirmation']:
+			flash('Your account is already confirmed', 'success')
+		else:
+			cur = get_db().cursor()
+				
+			cur.execute("UPDATE users SET confirmation=?, confirmed_on=? WHERE email=?",(1, datetime.now(), email))
+			# Commit to DB
+			get_db().commit()
+			#Close connection
+			cur.close()
+			flash('You have confirmed your account. Thanks!', 'success')
 	else:
-		cur = get_db().cursor()
-			
-		cur.execute("UPDATE users SET confirmed=?, confirmed_on=? WHERE email=?",(True, datetime.now(), email))
-		# Commit to DB
-		get_db().commit()
-		#Close connection
-		cur.close()
-		flash('You have confirmed your account. Thanks!', 'success')
-	return redirect(url_for('main.home'))
+		return render_template('404.html')
+	return redirect(url_for('index'))
 
 @app.route('/unconfirmed')
 @is_logged_in
@@ -367,6 +380,8 @@ class ProfileForm(FlaskForm):
 	uploadFile = FileField("Upload Avatar")
 	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
+	# Add regular expression to check if endswith('@upr.edu')
+	adminEmail = EmailField('Administrative Email', [validators.Length(min=10, max=35), validators.Email()])
 	password = PasswordField('Current Password', [
 		validators.DataRequired()
 	])
@@ -382,12 +397,15 @@ class ProfileForm(FlaskForm):
 def edit_profile(id):
 	# Get post by id
 	# TODO CAMBIAR EL QUERY PA QUE NO COJA TO
-	result = query_db("SELECT studentFirstName,studentLastName,password FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,password,email FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# Get form
-	form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
+	if session['id'] == int(id) and session['admin']:
+		form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
+	else:
+		form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Admin can bypass password verification or user must match their password
 		if session['id'] != int(id) or sha256_crypt.verify(form.password.data, result['password']):
@@ -417,6 +435,8 @@ def edit_profile(id):
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=? WHERE id=?",(studentFirstName, studentLastName, id))				
 			# If admin is editing the profile, only change the session variables for the user
 			if session['id'] == int(id):
+				if session['admin'] and form.adminEmail.data != "":
+					cur.execute("UPDATE users SET email=? WHERE id=?",(form.adminEmail.data, id))
 				session['username'] = studentFirstName
 				if filename != "":
 					session['customPicture'] = filename
@@ -428,7 +448,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form)
+	return render_template('edit_profile.html', form=form, id=int(id))
 
 @app.route('/user/<string:id>')
 def user_profile(id):
