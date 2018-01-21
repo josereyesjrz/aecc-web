@@ -17,27 +17,29 @@ import braintree
 # Email confirmation 'emailToken.py'
 import emailToken
 from flask_mail import Mail
+# Forgot Password
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 mail = Mail(app)
 
-directivaMemberList = ['presidente', 'vicepresidente', 'secretary', 'treasurer', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
+directivaMemberList = ['president', 'vicepresident', 'secretary', 'treasurer', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
 DATABASE = 'database/database.db'
 
 gravatar = Gravatar(app,
-                    size=100,
-                    rating='g',
-                    default='retro',
-                    force_default=False,
-                    force_lower=False,
-                    use_ssl=False,
-                    base_url=None)
+					size=100,
+					rating='g',
+					default='retro',
+					force_default=False,
+					force_lower=False,
+					use_ssl=False,
+					base_url=None)
 
 braintree.Configuration.configure(braintree.Environment.Sandbox,
-                                  merchant_id="ykqfttjmkjxqh34f",
-                                  public_key="qznsjn6yymz2b35y",
-                                  private_key="7920b35f630e2c714320dee79cbcd8dd")
+								  merchant_id="ykqfttjmkjxqh34f",
+								  public_key="qznsjn6yymz2b35y",
+								  private_key="7920b35f630e2c714320dee79cbcd8dd")
 
 def get_db():
 	db = getattr(g, '_database', None)
@@ -76,21 +78,21 @@ def query_db(query, args=(), one=False):
 # https://gist.github.com/Ostrovski/f16779933ceee3a9d181
 @app.url_defaults
 def hashed_static_file(endpoint, values):
-    if 'static' == endpoint or endpoint.endswith('.static'):
-        filename = values.get('filename')
-        if filename:
-            blueprint = request.blueprint
-            if '.' in endpoint:  # blueprint
-                blueprint = endpoint.rsplit('.', 1)[0]
+	if 'static' == endpoint or endpoint.endswith('.static'):
+		filename = values.get('filename')
+		if filename:
+			blueprint = request.blueprint
+			if '.' in endpoint:  # blueprint
+				blueprint = endpoint.rsplit('.', 1)[0]
 
-            static_folder = app.static_folder
-           # use blueprint, but dont set `static_folder` option
-            if blueprint and app.blueprints[blueprint].static_folder:
-                static_folder = app.blueprints[blueprint].static_folder
+			static_folder = app.static_folder
+		   # use blueprint, but dont set `static_folder` option
+			if blueprint and app.blueprints[blueprint].static_folder:
+				static_folder = app.blueprints[blueprint].static_folder
 
-            fp = os.path.join(static_folder, filename)
-            if os.path.exists(fp):
-                values['_'] = int(os.stat(fp).st_mtime)
+			fp = os.path.join(static_folder, filename)
+			if os.path.exists(fp):
+				values['_'] = int(os.stat(fp).st_mtime)
 # === Fixing cached static files in Flask ===
 
 # Index
@@ -145,7 +147,6 @@ class RegisterForm(FlaskForm):
 	email = EmailField('Email', [validators.DataRequired(), validators.Length(min=10, max=35), validators.Email()])
 	studentFirstName = StringField('First Name', [validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	studentLastName = StringField('Last Name', [validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
-
 	phoneNumber = StringField('Phone Number', [validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
 	# Add validators: At least 1 number, at least 1 uppercase
 	password = PasswordField('Password', [
@@ -172,7 +173,7 @@ def register():
 			# Check that username and email are unique
 			if len(query_db("SELECT id FROM users WHERE studentID = ?", [studentID])):
 				flash('Student Number already taken.', 'danger')
-			elif len(query_db("SELECT id FROM users WHERE email = ?", [email])):
+			elif len(query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email])):
 				flash('Email address already taken.', 'danger')
 			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
 				flash('Phone Number already taken.', 'danger')
@@ -181,9 +182,11 @@ def register():
 				firstName = form.studentFirstName.data
 				lastName = form.studentLastName.data
 				# Execute query
-				paymentStatus = "ACTIVE" if form.payNow.data else "PENDING"
-				insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, firstName, lastName, phoneNumber))
-				
+				# Pay now
+				if form.payNow.data:
+					insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, firstName, lastName, phoneNumber, "ACTIVE"))
+				else:
+					insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, firstName, lastName, phoneNumber))
 				# Generate and Send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
 				confirm_url = url_for('confirm_email', token=token, _external=True)
@@ -191,7 +194,15 @@ def register():
 				subject = "Please confirm your email"
 				emailToken.send_email(email, subject, html)
 
-				flash('You are now registered and can log in. A confirmation email has been sent to verify your account.', 'success')
+				flash('You are now registered and logged in. A confirmation email has been sent to verify your account.', 'success')
+				userID = query_db("SELECT id FROM users WHERE studentID=?", (studentID,), True)
+				session['id'] = userID['id']
+				session['logged_in'] = True
+				session['username'] = firstName
+				session['email'] = email
+				session['customPicture'] = "FALSE"
+				session['confirmation'] = 0
+				session['admin'] = False
 				return redirect(url_for('unconfirmed'))
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
@@ -215,7 +226,7 @@ def login():
 			password_candidate = request.form['password']
 
 			# Get user by username
-			result = query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation FROM users WHERE email = ?", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation FROM users WHERE studentID = ?", (username,), True)
+			result = query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
 				# Get stored hash
 				password = result['password']
@@ -228,7 +239,8 @@ def login():
 					session['id'] = result['id']
 					session['email'] = result['email']
 					session['customPicture'] = result['customPicture']
-					session['confirmation'] = False if str(result['confirmation']) == "False" else True
+					session['confirmation'] = result['confirmation']
+					session['admin'] = True if result['priviledge'] == "ADMIN" else False
 
 					#flash('You are now logged in', 'success')
 					return redirect(url_for('dashboard'))
@@ -277,14 +289,99 @@ def is_allowed_edit(f):
 	return wrap
 
 def check_confirmed(func):
-    @wraps(func)
-    def decorated_function(*args, **kwargs):
-        if not session['confirmation']:
-        	flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
-            #flash('Please confirm your account! Didn\'t get the email?', 'warning')
-        return func(*args, **kwargs)
+	@wraps(func)
+	def decorated_function(*args, **kwargs):
+		if not session['confirmation']:
+			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
+			#flash('Please confirm your account! Didn\'t get the email?', 'warning')
+		return func(*args, **kwargs)
 
-    return decorated_function
+	return decorated_function
+
+# ==== Forgot Password ====
+# https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
+class ExistingUser(object):
+	def __init__(self, message="Email doesn't exists"):
+		self.message = message
+	def __call__(self, form, field):
+		if not query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (field.data,), True):
+			raise ValidationError(self.message)
+
+class ResetPassword(FlaskForm):
+	email = EmailField('Email', validators=[validators.Required(),
+		  validators.Email(),
+		  ExistingUser(message='Email address is not available')
+		 ])
+
+class ResetPasswordSubmit(FlaskForm):
+	# TODO Add password custom validator
+	# password = PasswordField('Password', validators=custom_validators['edit_password'])
+	password = PasswordField('Password', [validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
+		validators.EqualTo('confirm', message='Passwords do not match')])
+	confirm = PasswordField('Confirm Password')
+
+def get_token(id, expiration=1800):
+		s = Serializer(app.config['SECRET_KEY'], expiration)
+		return s.dumps({'user': id}).decode('utf-8')
+
+#@staticmethod
+def verify_token(token):
+	s = Serializer(app.config['SECRET_KEY'])
+	try:
+		data = s.loads(token)
+	except:
+		return None
+	id = data.get('user')
+	if id:
+		return id
+	return None
+
+def anonymous_user_required(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'logged_in' not in session:
+			return f(*args, **kwargs)
+		else:
+			flash('Logout to reset your password.', 'danger')
+			return redirect(url_for('dashboard'))
+	return wrap
+
+@app.route('/reset-password', methods=['GET', 'POST'])
+@anonymous_user_required
+def forgot_password():
+	token = request.args.get('token',None)
+	form = ResetPassword(request.form) #form
+	if form.validate_on_submit():
+		email = form.email.data
+		user = query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+		if user:
+			token = get_token(user['id'])
+			confirm_url = url_for('reset_password', token=token, _external=True)
+			html = render_template('reset_email.html', confirm_url=confirm_url)
+			subject = "Password Reset for AECC"
+			emailToken.send_email(email, subject, html)
+			flash('A password reset email has been sent.', 'success')
+	return render_template('forgot_password.html', form=form)
+
+@app.route('/users/reset/<token>', methods=['GET', 'POST'])
+@anonymous_user_required
+def reset_password(token):
+	verified_result = verify_token(token)
+	if token and verified_result:
+		password_submit_form = ResetPasswordSubmit(request.form)
+		if password_submit_form.validate_on_submit():
+			new_password = sha256_crypt.encrypt(str(password_submit_form.password.data))
+			cur = get_db().cursor()
+			cur.execute("UPDATE users SET password=? WHERE id=? and priviledge != 'ADMIN'",(new_password, verified_result))
+			# Commit to DB
+			get_db().commit()
+			#Close connection
+			cur.close()
+			#return "password updated successfully"
+			flash('Password updated successfully', 'success')
+			return redirect(url_for('login'))
+		return render_template("reset_password.html", form=password_submit_form)
+	return render_template('404.html')
 
 # Email Confirmation
 @app.route('/confirm/<token>')
@@ -294,38 +391,41 @@ def confirm_email(token):
 		email = emailToken.confirm_token(token)
 	except:
 		flash('The confirmation link is invalid or has expired.', 'danger')
-	user = query_db("SELECT confirmation,confirmed_on FROM users WHERE email=?", (email,), True).first_or_404()
-	if user['confirmed']:
-		flash('Account already confirmed. Please login.', 'success')
+	user = query_db("SELECT confirmation,confirmed_on FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+	if user != None:
+		if user['confirmation']:
+			flash('Your account is already confirmed', 'success')
+		else:
+			cur = get_db().cursor()
+				
+			cur.execute("UPDATE users SET confirmation=?, confirmed_on=? WHERE email=?",(1, datetime.now(), email))
+			# Commit to DB
+			get_db().commit()
+			#Close connection
+			cur.close()
+			flash('You have confirmed your account. Thanks!', 'success')
 	else:
-		cur = get_db().cursor()
-			
-		cur.execute("UPDATE users SET confirmed=?, confirmed_on=? WHERE email=?",(True, datetime.now(), email))
-		# Commit to DB
-		get_db().commit()
-		#Close connection
-		cur.close()
-		flash('You have confirmed your account. Thanks!', 'success')
-	return redirect(url_for('main.home'))
+		return render_template('404.html')
+	return redirect(url_for('index'))
 
 @app.route('/unconfirmed')
 @is_logged_in
 def unconfirmed():
-    if session['confirmation']:
-        return redirect(url_for('dashboard'))
-    flash('Please confirm your account!', 'warning')
-    return render_template('unconfirmed.html')
+	if session['confirmation']:
+		return redirect(url_for('dashboard'))
+	flash('Please confirm your account!', 'warning')
+	return render_template('unconfirmed.html')
 
 @app.route('/resend')
 @is_logged_in
 def resend_confirmation():
-    token = emailToken.generate_confirmation_token(session['email'])
-    confirm_url = url_for('confirm_email', token=token, _external=True)
-    html = render_template('activate.html', confirm_url=confirm_url)
-    subject = "Please confirm your email"
-    emailToken.send_email(session['email'], subject, html)
-    flash('A new confirmation email has been sent.', 'success')
-    return redirect(url_for('unconfirmed'))
+	token = emailToken.generate_confirmation_token(session['email'])
+	confirm_url = url_for('confirm_email', token=token, _external=True)
+	html = render_template('activate.html', confirm_url=confirm_url)
+	subject = "Please confirm your email"
+	emailToken.send_email(session['email'], subject, html)
+	flash('A new confirmation email has been sent.', 'success')
+	return redirect(url_for('unconfirmed'))
 
 # Logout
 @app.route('/logout')
@@ -367,6 +467,8 @@ class ProfileForm(FlaskForm):
 	uploadFile = FileField("Upload Avatar")
 	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
+	# Add regular expression to check if endswith('@upr.edu')
+	adminEmail = EmailField('Administrative Email', [validators.Length(min=10, max=35), validators.Email()])
 	password = PasswordField('Current Password', [
 		validators.DataRequired()
 	])
@@ -382,12 +484,15 @@ class ProfileForm(FlaskForm):
 def edit_profile(id):
 	# Get post by id
 	# TODO CAMBIAR EL QUERY PA QUE NO COJA TO
-	result = query_db("SELECT studentFirstName,studentLastName,password FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,password,email FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# Get form
-	form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
+	if session['id'] == int(id) and session['admin']:
+		form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
+	else:
+		form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Admin can bypass password verification or user must match their password
 		if session['id'] != int(id) or sha256_crypt.verify(form.password.data, result['password']):
@@ -417,6 +522,8 @@ def edit_profile(id):
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=? WHERE id=?",(studentFirstName, studentLastName, id))				
 			# If admin is editing the profile, only change the session variables for the user
 			if session['id'] == int(id):
+				if session['admin'] and form.adminEmail.data != "":
+					cur.execute("UPDATE users SET email=? WHERE id=?",(form.adminEmail.data, id))
 				session['username'] = studentFirstName
 				if filename != "":
 					session['customPicture'] = filename
@@ -428,7 +535,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form)
+	return render_template('edit_profile.html', form=form, id=int(id))
 
 @app.route('/user/<string:id>')
 def user_profile(id):
