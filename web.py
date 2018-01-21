@@ -13,6 +13,8 @@ import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
 #Transactions
+from os.path import join, dirname
+from dotenv import load_dotenv
 import braintree
 # Email confirmation 'emailToken.py'
 import emailToken
@@ -21,6 +23,26 @@ from flask_mail import Mail
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 mail = Mail(app)
+
+TRANSACTION_SUCCESS_STATUSES = [
+    braintree.Transaction.Status.Authorized,
+    braintree.Transaction.Status.Authorizing,
+    braintree.Transaction.Status.Settled,
+    braintree.Transaction.Status.SettlementConfirmed,
+    braintree.Transaction.Status.SettlementPending,
+    braintree.Transaction.Status.Settling,
+    braintree.Transaction.Status.SubmittedForSettlement
+]
+
+dotenv_path = 'mycred.env'
+load_dotenv(dotenv_path)
+app.secret_key = os.environ.get('APP_SECRET_KEY')
+braintree.Configuration.configure(
+    os.environ.get('BT_ENVIRONMENT'),
+    os.environ.get('BT_MERCHANT_ID'),
+    os.environ.get('BT_PUBLIC_KEY'),
+    os.environ.get('BT_PRIVATE_KEY')
+)
 
 directivaMemberList = ['presidente', 'vicepresidente', 'secretary', 'treasurer', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
 DATABASE = 'database/database.db'
@@ -534,15 +556,50 @@ def delete_post(id):
 
 	return redirect(url_for('dashboard'))
 	
-#Generate token
-@app.route("/client_token", methods=["GET"])
-def client_token():
-	return braintree.ClientToken.generate()
+#@app.route('/', methods=['GET'])
+#def index():
+#    return redirect(url_for('new_checkout'))
+#
+#@app.route('/checkouts/new', methods=['GET'])
+#def new_checkout():
+#    client_token = braintree.ClientToken.generate()
+#    return render_template('checkouts/new.html', client_token=client_token)
 
-@app.route("/checkout", methods=["POST"])
-def create_purchase():
-	nonce_from_the_client = request.form["payment_method_nonce"]
-	# Use payment method nonce here...
+#@app.route('/checkouts/<transaction_id>', methods=['GET'])
+#def show_checkout(transaction_id):
+#    transaction = braintree.Transaction.find(transaction_id)
+#    result = {}
+#    if transaction.status in TRANSACTION_SUCCESS_STATUSES:
+#        result = {
+#            'header': 'Sweet Success!',
+#            'icon': 'success',
+#            'message': 'Your test transaction has been successfully processed. See the Braintree API response and try again.'
+ #       }
+ #   else:
+#        result = {
+#            'header': 'Transaction Failed',
+#            'icon': 'fail',
+#            'message': 'Your test transaction has a status of ' + transaction.status + '. See the Braintree API response and try again.'
+#        }
+#
+#    return render_template('checkouts/show.html', transaction=transaction, result=result)
+
+#@app.route('/checkouts', methods=['POST'])
+#def create_checkout():
+#    result = braintree.Transaction.sale({
+#        'amount': request.form['amount'],
+#        'payment_method_nonce': request.form['payment_method_nonce'],
+#        'options': {
+#            "submit_for_settlement": True
+#        }
+ #   })
+#
+#    if result.is_success or result.transaction:
+  #      return redirect(url_for('show_checkout',transaction_id=result.transaction.id))
+ #   else:
+#        for x in result.errors.deep_errors: flash('Error: %s: %s' % (x.code, x.message))
+#        return redirect(url_for('new_checkout'))
+
 
 if __name__ == '__main__':
 	ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
