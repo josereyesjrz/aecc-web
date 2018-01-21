@@ -325,6 +325,7 @@ def get_token(id, expiration=1800):
 		return s.dumps({'user': id}).decode('utf-8')
 
 #@staticmethod
+# TODO Mejorar la seguridad de esto
 def verify_token(token):
 	s = Serializer(app.config['SECRET_KEY'])
 	try:
