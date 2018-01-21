@@ -8,7 +8,7 @@ from flask_wtf.file import FileField, FileAllowed, FileRequired
 from passlib.hash import sha256_crypt
 from functools import wraps
 #Upload
-import os
+from os import path, remove, stat
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
