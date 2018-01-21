@@ -13,7 +13,7 @@ create table users (
 	confirmed_on text,
 	customPicture text not null default "FALSE",
 	biography text,
-	date_created text not null default datetime('now')
+	date_created text not null default (datetime('now'))
 );
 
 -- DEFAULT ADMIN PASSWORD: aecc-website
