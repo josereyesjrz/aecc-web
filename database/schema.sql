@@ -9,6 +9,8 @@ create table users (
 	password text not null,
 	priviledge text not null default "MEMBER",
 	status text not null default "PENDING",
+	confirmation boolean not null default False,
+	confirmed_on text,
 	customPicture text not null default "FALSE",
 	biography text,
 	date_created text not null

@@ -11,3 +11,11 @@ Development of the new AECC website. Project for software engineering class.
 
 # Para encriptar passwords
 `pip install passlib`
+
+# Para email confirmation
+pip install itsdangerous
+pip install Flask-Mail
+
+# Antes de correr el website
+$ export APP_MAIL_USERNAME='InsertEmailAddressHere'
+$ export APP_MAIL_PASSWORD='InsertEmailPasswordHere'

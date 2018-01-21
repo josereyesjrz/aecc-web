@@ -1,4 +1,4 @@
-from flask import Flask, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory, abort
+from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory, Markup
 import sqlite3
 from datetime import datetime
 from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
@@ -14,14 +14,15 @@ from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
 #Transactions
 import braintree
-#Cache
-from nocache import nocache
+# Email confirmation 'emailToken.py'
+import emailToken
+from flask_mail import Mail
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024
-ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
+app.config.from_pyfile('config.py')
+mail = Mail(app)
 
+directivaMemberList = ['president', 'vicepresident', 'secretary', 'treasury', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
 DATABASE = 'database/database.db'
 
 gravatar = Gravatar(app,
@@ -71,6 +72,27 @@ def query_db(query, args=(), one=False):
 	cur.close()
 	return (rv[0] if rv else None) if one else rv
 
+# === Fixing cached static files in Flask ===
+# https://gist.github.com/Ostrovski/f16779933ceee3a9d181
+@app.url_defaults
+def hashed_static_file(endpoint, values):
+    if 'static' == endpoint or endpoint.endswith('.static'):
+        filename = values.get('filename')
+        if filename:
+            blueprint = request.blueprint
+            if '.' in endpoint:  # blueprint
+                blueprint = endpoint.rsplit('.', 1)[0]
+
+            static_folder = app.static_folder
+           # use blueprint, but dont set `static_folder` option
+            if blueprint and app.blueprints[blueprint].static_folder:
+                static_folder = app.blueprints[blueprint].static_folder
+
+            fp = os.path.join(static_folder, filename)
+            if os.path.exists(fp):
+                values['_'] = int(os.stat(fp).st_mtime)
+# === Fixing cached static files in Flask ===
+
 # Index
 @app.route('/')
 def index():
@@ -114,10 +136,10 @@ class RegisterForm(FlaskForm):
 	# Prevent symbols in username
 	studentID = StringField('Student Number', [validators.Regexp("\d{9}",message = "Enter a valid Student Number"),validators.DataRequired(), validators.Length(min=9, max=9)])
 
-	email = EmailField('Email', [validators.DataRequired(), validators.Length(min=6, max=35), validators.Email()])
+	email = EmailField('Email', [validators.DataRequired(), validators.Length(min=10, max=35), validators.Email()])
 	studentFirstName = StringField('First Name', [validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	studentLastName = StringField('Last Name', [validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
-	#
+
 	phoneNumber = StringField('Phone Number', [validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
 	# Add validators: At least 1 number, at least 1 uppercase
 	password = PasswordField('Password', [
@@ -127,7 +149,7 @@ class RegisterForm(FlaskForm):
 	confirm = PasswordField('Confirm Password')
 	#boolean Field
 	#Here
-	payNow = BooleanField("Pay Now")
+	payNow = BooleanField("Pay Membership now?")
 	# validators.Optional(strip_whitespace=True)
 	# validators.Regexp(regex= , flags= , message)
 
@@ -155,8 +177,16 @@ def register():
 				# Execute query
 				paymentStatus = "ACTIVE" if form.payNow.data else "PENDING"
 				insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status", "date_created"), (email, studentID, password, firstName, lastName, phoneNumber, paymentStatus, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-				flash('You are now registered and can log in.', 'success')
-				return redirect(url_for('index'))
+				
+				# Generate and Send the confirmation email
+				token = emailToken.generate_confirmation_token(email)
+				confirm_url = url_for('confirm_email', token=token, _external=True)
+				html = render_template('activate.html', confirm_url=confirm_url)
+				subject = "Please confirm your email"
+				emailToken.send_email(email, subject, html)
+
+				flash('You are now registered and can log in. A confirmation email has been sent to verify your account.', 'success')
+				return redirect(url_for('unconfirmed'))
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
 	return render_template('register.html', form=form)
@@ -168,19 +198,18 @@ def login():
 		logging_with_email = False
 		validCredentials = False
 		# Get Form Fields
-		studentID = str(request.form['username'])
-		if studentID.endswith("@upr.edu"):
-			logging_with_email = True
-			validCredentials = True
-		elif not studentID.isdigit():
-			flash("Invalid username or password.", 'danger')
-		else:
+		username = str(request.form['username']).lower()
+		if username.endswith("@upr.edu"):
+			if len(username) >= 10 and len(username) <= 35:
+				logging_with_email = True
+				validCredentials = True
+		elif username.isdigit() or username in directivaMemberList:
 			validCredentials = True
 		if validCredentials:
 			password_candidate = request.form['password']
 
 			# Get user by username
-			result = query_db("SELECT id,studentFirstName,email,password,customPicture FROM users WHERE email = ?", (studentID,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture FROM users WHERE studentID = ?", (studentID,), True)
+			result = query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation FROM users WHERE email = ?", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
 				# Get stored hash
 				password = result['password']
@@ -193,18 +222,20 @@ def login():
 					session['id'] = result['id']
 					session['email'] = result['email']
 					session['customPicture'] = result['customPicture']
+					session['confirmation'] = False if str(result['confirmation']) == "False" else True
 
-					flash('You are now logged in', 'success')
+					#flash('You are now logged in', 'success')
 					return redirect(url_for('dashboard'))
 				else:
 					flash("Invalid username or password.", 'danger')
 					#error = 'Username and/or Password is incorrect'
 					#return render_template('login.html', error=error)
-				# Close connection
 			else:
 				flash("Invalid username or password.", 'danger')
 				#error = 'Username and/or Password is incorrect'
 				#return render_template('login.html', error=error)
+		else:
+			flash("Invalid username or password.", 'danger')
 
 	return render_template('login.html')
 
@@ -239,6 +270,57 @@ def is_allowed_edit(f):
 			return redirect(url_for('dashboard'))
 	return wrap
 
+def check_confirmed(func):
+    @wraps(func)
+    def decorated_function(*args, **kwargs):
+        if not session['confirmation']:
+        	flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
+            #flash('Please confirm your account! Didn\'t get the email?', 'warning')
+        return func(*args, **kwargs)
+
+    return decorated_function
+
+# Email Confirmation
+@app.route('/confirm/<token>')
+@is_logged_in
+def confirm_email(token):
+	try:
+		email = emailToken.confirm_token(token)
+	except:
+		flash('The confirmation link is invalid or has expired.', 'danger')
+	user = query_db("SELECT confirmation,confirmed_on FROM users WHERE email=?", (email,), True).first_or_404()
+	if user['confirmed']:
+		flash('Account already confirmed. Please login.', 'success')
+	else:
+		cur = get_db().cursor()
+			
+		cur.execute("UPDATE users SET confirmed=?, confirmed_on=? WHERE email=?",(True, datetime.now(), email))
+		# Commit to DB
+		get_db().commit()
+		#Close connection
+		cur.close()
+		flash('You have confirmed your account. Thanks!', 'success')
+	return redirect(url_for('main.home'))
+
+@app.route('/unconfirmed')
+@is_logged_in
+def unconfirmed():
+    if session['confirmation']:
+        return redirect(url_for('dashboard'))
+    flash('Please confirm your account!', 'warning')
+    return render_template('unconfirmed.html')
+
+@app.route('/resend')
+@is_logged_in
+def resend_confirmation():
+    token = emailToken.generate_confirmation_token(session['email'])
+    confirm_url = url_for('confirm_email', token=token, _external=True)
+    html = render_template('activate.html', confirm_url=confirm_url)
+    subject = "Please confirm your email"
+    emailToken.send_email(session['email'], subject, html)
+    flash('A new confirmation email has been sent.', 'success')
+    return redirect(url_for('unconfirmed'))
+
 # Logout
 @app.route('/logout')
 @is_logged_in
@@ -250,6 +332,7 @@ def logout():
 # Dashboard
 @app.route('/dashboard')
 @is_logged_in
+@check_confirmed
 def dashboard():
 
 	# Get articles
@@ -290,7 +373,6 @@ class ProfileForm(FlaskForm):
 @app.route('/edit_profile/<string:id>', methods=['GET', 'POST'])
 @is_logged_in
 @is_allowed_edit
-@nocache
 def edit_profile(id):
 	# Get post by id
 	# TODO CAMBIAR EL QUERY PA QUE NO COJA TO
@@ -305,7 +387,8 @@ def edit_profile(id):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
-			if f != None:		
+			filename = secure_filename(f.filename)
+			if filename != "":
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
 				for img in glob.glob(app.config['UPLOAD_FOLDER'] + "/" + str(id)+".*"):
@@ -316,13 +399,13 @@ def edit_profile(id):
 			if form.new_password.data != "":
 				new_password = sha256_crypt.encrypt(str(form.new_password.data))
 				#Execute
-				if f != None:
+				if filename != "":
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, new_password, filename, id))
 					session['customPicture'] = filename
 				else:
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=? WHERE id=?",(studentFirstName, studentLastName, new_password, id))
 			else:
-				if f != None:
+				if filename != "":
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, filename, id))
 					session['customPicture'] = filename
 				else:
@@ -454,5 +537,5 @@ def create_purchase():
 	# Use payment method nonce here...
 
 if __name__ == '__main__':
-	app.secret_key='secret123'
+	ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 	app.run(debug=True)
