@@ -14,7 +14,6 @@ from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
 #Transactions
 import braintree
-from os.path import join, dirname
 from dotenv import load_dotenv
 # Email confirmation 'emailToken.py'
 import emailToken
@@ -111,9 +110,9 @@ def hashed_static_file(endpoint, values):
 			if blueprint and app.blueprints[blueprint].static_folder:
 				static_folder = app.blueprints[blueprint].static_folder
 
-			fp = os.path.join(static_folder, filename)
-			if os.path.exists(fp):
-				values['_'] = int(os.stat(fp).st_mtime)
+			fp = path.join(static_folder, filename)
+			if path.exists(fp):
+				values['_'] = int(stat(fp).st_mtime)
 # === Fixing cached static files in Flask ===
 
 # Index
@@ -539,9 +538,9 @@ def edit_profile(id):
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
 				for img in glob.glob(app.config['UPLOAD_FOLDER'] + "/" + str(id)+".*"):
-					if os.path.exists(img):
-						os.remove(img)
-				f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+					if path.exists(img):
+						remove(img)
+				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
 			cur = get_db().cursor()
 			if form.new_password.data != "":
 				new_password = sha256_crypt.encrypt(str(form.new_password.data))
