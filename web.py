@@ -416,7 +416,7 @@ def edit_profile(id):
 				else:
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=? WHERE id=?",(studentFirstName, studentLastName, id))				
 			# If admin is editing the profile, only change the session variables for the user
-			if session['id'] == id:
+			if session['id'] == int(id):
 				session['username'] = studentFirstName
 				if filename != "":
 					session['customPicture'] = filename
