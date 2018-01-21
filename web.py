@@ -8,13 +8,13 @@ from flask_wtf.file import FileField, FileAllowed, FileRequired
 from passlib.hash import sha256_crypt
 from functools import wraps
 #Upload
-from os import remove, stat
+import os
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
 #Transactions
 import braintree
-from os.path import join, dirname, exists
+from os.path import join, dirname
 from dotenv import load_dotenv
 # Email confirmation 'emailToken.py'
 import emailToken
@@ -111,9 +111,9 @@ def hashed_static_file(endpoint, values):
 			if blueprint and app.blueprints[blueprint].static_folder:
 				static_folder = app.blueprints[blueprint].static_folder
 
-			fp = join(static_folder, filename)
-			if exists(fp):
-				values['_'] = int(stat(fp).st_mtime)
+			fp = os.path.join(static_folder, filename)
+			if os.path.exists(fp):
+				values['_'] = int(os.stat(fp).st_mtime)
 # === Fixing cached static files in Flask ===
 
 # Index
@@ -485,12 +485,24 @@ def allowed_file(filename):
 
 # === PROFILE === #
 
-class ProfileForm(FlaskForm):
+class AdminForm(FlaskForm):
 	uploadFile = FileField("Upload Avatar")
 	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
 	# Add regular expression to check if endswith('@upr.edu')
 	adminEmail = EmailField('Administrative Email', [validators.Length(min=10, max=35), validators.Email()])
+	password = PasswordField('Current Password', [
+		validators.DataRequired()
+	])
+	new_password = PasswordField('New Password', [
+		validators.EqualTo('confirm', message='Passwords do not match')
+	])
+	confirm = PasswordField('Confirm Password')
+
+class ProfileForm(FlaskForm):
+	uploadFile = FileField("Upload Avatar")
+	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
+	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
 	password = PasswordField('Current Password', [
 		validators.DataRequired()
 	])
@@ -512,12 +524,13 @@ def edit_profile(id):
 		return render_template('404.html')
 	# Get form
 	if session['id'] == int(id) and session['admin']:
-		form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
+		form = AdminForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
 	else:
 		form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Admin can bypass password verification or user must match their password
 		if session['id'] != int(id) or sha256_crypt.verify(form.password.data, result['password']):
+
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
@@ -526,9 +539,9 @@ def edit_profile(id):
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
 				for img in glob.glob(app.config['UPLOAD_FOLDER'] + "/" + str(id)+".*"):
-					if exists(img):
-						remove(img)
-				f.save(join(app.config['UPLOAD_FOLDER'], filename))
+					if os.path.exists(img):
+						os.remove(img)
+				f.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 			cur = get_db().cursor()
 			if form.new_password.data != "":
 				new_password = sha256_crypt.encrypt(str(form.new_password.data))
