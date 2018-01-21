@@ -8,7 +8,7 @@ from flask_wtf.file import FileField, FileAllowed, FileRequired
 from passlib.hash import sha256_crypt
 from functools import wraps
 #Upload
-from os import path, remove, stat
+from os import path, remove, stat, environ
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
@@ -29,10 +29,10 @@ load_dotenv(dotenv_path)
 mail = Mail(app)
 
 braintree.Configuration.configure(
-    os.environ.get('BT_ENVIRONMENT'),
-    os.environ.get('BT_MERCHANT_ID'),
-    os.environ.get('BT_PUBLIC_KEY'),
-    os.environ.get('BT_PRIVATE_KEY')
+    environ.get('BT_ENVIRONMENT'),
+    environ.get('BT_MERCHANT_ID'),
+    environ.get('BT_PUBLIC_KEY'),
+    environ.get('BT_PRIVATE_KEY')
 )
 
 TRANSACTION_SUCCESS_STATUSES = [
