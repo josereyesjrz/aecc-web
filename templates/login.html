@@ -2,7 +2,7 @@
 
 {% block body %}
   <h1>Login</h1>
-  <form action="/login"" method="POST">
+  <form action="{{ url_for('login') }}" method="POST">
     <div class="form-group">
       <label>Username</label>
       <input type="text" name="username" class="form-control" value={{request.form.username}}>
@@ -12,5 +12,6 @@
       <input type="password" name="password" class="form-control" value={{request.form.password}}>
     </div>
     <button type="submit" class="btn btn-primary">Submit</button>
+    <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
   </form>
 {% endblock %}

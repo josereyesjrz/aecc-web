@@ -51,6 +51,7 @@
                           <input type="password" name="password" class="form-control" value={{request.form.password}}>
                         </div>
                         <button type="submit" class="btn btn-primary">Sign in</button>
+                        <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
                       </form>
                     </div>
                     <div class="modal-footer">

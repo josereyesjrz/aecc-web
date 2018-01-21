@@ -26,4 +26,4 @@ MAIL_USERNAME = 'websiteaecc@gmail.com'
 MAIL_PASSWORD = 'aeccwebsite2018'
 
 # mail accounts
-#MAIL_DEFAULT_SENDER = 'noreply@aecc.com'
+MAIL_DEFAULT_SENDER = 'noreply@aecc.com'

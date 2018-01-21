@@ -14,6 +14,11 @@
     <div class="form-group">
       {{render_field(form.studentLastName, class_="form-control")}}
     </div>
+    {% if session.id == id and session.admin %}
+      <div class="form-group">
+        {{render_field(form.adminEmail, class_="form-control")}}
+      </div>
+    {% endif %}
     <div class="form-group">
       {{render_field(form.password, class_="form-control")}}
     </div>
