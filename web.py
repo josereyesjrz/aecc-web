@@ -17,6 +17,8 @@ import braintree
 # Email confirmation 'emailToken.py'
 import emailToken
 from flask_mail import Mail
+# Forgot Password
+from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -26,18 +28,18 @@ directivaMemberList = ['president', 'vicepresident', 'secretary', 'treasurer', '
 DATABASE = 'database/database.db'
 
 gravatar = Gravatar(app,
-                    size=100,
-                    rating='g',
-                    default='retro',
-                    force_default=False,
-                    force_lower=False,
-                    use_ssl=False,
-                    base_url=None)
+					size=100,
+					rating='g',
+					default='retro',
+					force_default=False,
+					force_lower=False,
+					use_ssl=False,
+					base_url=None)
 
 braintree.Configuration.configure(braintree.Environment.Sandbox,
-                                  merchant_id="ykqfttjmkjxqh34f",
-                                  public_key="qznsjn6yymz2b35y",
-                                  private_key="7920b35f630e2c714320dee79cbcd8dd")
+								  merchant_id="ykqfttjmkjxqh34f",
+								  public_key="qznsjn6yymz2b35y",
+								  private_key="7920b35f630e2c714320dee79cbcd8dd")
 
 def get_db():
 	db = getattr(g, '_database', None)
@@ -76,21 +78,21 @@ def query_db(query, args=(), one=False):
 # https://gist.github.com/Ostrovski/f16779933ceee3a9d181
 @app.url_defaults
 def hashed_static_file(endpoint, values):
-    if 'static' == endpoint or endpoint.endswith('.static'):
-        filename = values.get('filename')
-        if filename:
-            blueprint = request.blueprint
-            if '.' in endpoint:  # blueprint
-                blueprint = endpoint.rsplit('.', 1)[0]
+	if 'static' == endpoint or endpoint.endswith('.static'):
+		filename = values.get('filename')
+		if filename:
+			blueprint = request.blueprint
+			if '.' in endpoint:  # blueprint
+				blueprint = endpoint.rsplit('.', 1)[0]
 
-            static_folder = app.static_folder
-           # use blueprint, but dont set `static_folder` option
-            if blueprint and app.blueprints[blueprint].static_folder:
-                static_folder = app.blueprints[blueprint].static_folder
+			static_folder = app.static_folder
+		   # use blueprint, but dont set `static_folder` option
+			if blueprint and app.blueprints[blueprint].static_folder:
+				static_folder = app.blueprints[blueprint].static_folder
 
-            fp = os.path.join(static_folder, filename)
-            if os.path.exists(fp):
-                values['_'] = int(os.stat(fp).st_mtime)
+			fp = os.path.join(static_folder, filename)
+			if os.path.exists(fp):
+				values['_'] = int(os.stat(fp).st_mtime)
 # === Fixing cached static files in Flask ===
 
 # Index
@@ -287,14 +289,99 @@ def is_allowed_edit(f):
 	return wrap
 
 def check_confirmed(func):
-    @wraps(func)
-    def decorated_function(*args, **kwargs):
-        if not session['confirmation']:
-        	flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
-            #flash('Please confirm your account! Didn\'t get the email?', 'warning')
-        return func(*args, **kwargs)
+	@wraps(func)
+	def decorated_function(*args, **kwargs):
+		if not session['confirmation']:
+			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
+			#flash('Please confirm your account! Didn\'t get the email?', 'warning')
+		return func(*args, **kwargs)
 
-    return decorated_function
+	return decorated_function
+
+# ==== Forgot Password ====
+# https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
+class ExistingUser(object):
+	def __init__(self, message="Email doesn't exists"):
+		self.message = message
+	def __call__(self, form, field):
+		if not query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (field.data,), True):
+			raise ValidationError(self.message)
+
+class ResetPassword(FlaskForm):
+	email = EmailField('Email', validators=[validators.Required(),
+		  validators.Email(),
+		  ExistingUser(message='Email address is not available')
+		 ])
+
+class ResetPasswordSubmit(FlaskForm):
+	# TODO Add password custom validator
+	# password = PasswordField('Password', validators=custom_validators['edit_password'])
+	password = PasswordField('Password', [validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
+		validators.EqualTo('confirm', message='Passwords do not match')])
+	confirm = PasswordField('Confirm Password')
+
+def get_token(id, expiration=1800):
+		s = Serializer(app.config['SECRET_KEY'], expiration)
+		return s.dumps({'user': id}).decode('utf-8')
+
+#@staticmethod
+def verify_token(token):
+	s = Serializer(app.config['SECRET_KEY'])
+	try:
+		data = s.loads(token)
+	except:
+		return None
+	id = data.get('user')
+	if id:
+		return id
+	return None
+
+def anonymous_user_required(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'logged_in' not in session:
+			return f(*args, **kwargs)
+		else:
+			flash('Logout to reset your password.', 'danger')
+			return redirect(url_for('dashboard'))
+	return wrap
+
+@app.route('/reset-password', methods=['GET', 'POST'])
+@anonymous_user_required
+def forgot_password():
+	token = request.args.get('token',None)
+	form = ResetPassword(request.form) #form
+	if form.validate_on_submit():
+		email = form.email.data
+		user = query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+		if user:
+			token = get_token(user['id'])
+			confirm_url = url_for('reset_password', token=token, _external=True)
+			html = render_template('reset_email.html', confirm_url=confirm_url)
+			subject = "Password Reset for AECC"
+			emailToken.send_email(email, subject, html)
+			flash('A password reset email has been sent.', 'success')
+	return render_template('forgot_password.html', form=form)
+
+@app.route('/users/reset/<token>', methods=['GET', 'POST'])
+@anonymous_user_required
+def reset_password(token):
+	verified_result = verify_token(token)
+	if token and verified_result:
+		password_submit_form = ResetPasswordSubmit(request.form)
+		if password_submit_form.validate_on_submit():
+			new_password = sha256_crypt.encrypt(str(password_submit_form.password.data))
+			cur = get_db().cursor()
+			cur.execute("UPDATE users SET password=? WHERE id=? and priviledge != 'ADMIN'",(new_password, verified_result))
+			# Commit to DB
+			get_db().commit()
+			#Close connection
+			cur.close()
+			#return "password updated successfully"
+			flash('Password updated successfully', 'success')
+			return redirect(url_for('login'))
+		return render_template("reset_password.html", form=password_submit_form)
+	return render_template('404.html')
 
 # Email Confirmation
 @app.route('/confirm/<token>')
@@ -324,21 +411,21 @@ def confirm_email(token):
 @app.route('/unconfirmed')
 @is_logged_in
 def unconfirmed():
-    if session['confirmation']:
-        return redirect(url_for('dashboard'))
-    flash('Please confirm your account!', 'warning')
-    return render_template('unconfirmed.html')
+	if session['confirmation']:
+		return redirect(url_for('dashboard'))
+	flash('Please confirm your account!', 'warning')
+	return render_template('unconfirmed.html')
 
 @app.route('/resend')
 @is_logged_in
 def resend_confirmation():
-    token = emailToken.generate_confirmation_token(session['email'])
-    confirm_url = url_for('confirm_email', token=token, _external=True)
-    html = render_template('activate.html', confirm_url=confirm_url)
-    subject = "Please confirm your email"
-    emailToken.send_email(session['email'], subject, html)
-    flash('A new confirmation email has been sent.', 'success')
-    return redirect(url_for('unconfirmed'))
+	token = emailToken.generate_confirmation_token(session['email'])
+	confirm_url = url_for('confirm_email', token=token, _external=True)
+	html = render_template('activate.html', confirm_url=confirm_url)
+	subject = "Please confirm your email"
+	emailToken.send_email(session['email'], subject, html)
+	flash('A new confirmation email has been sent.', 'success')
+	return redirect(url_for('unconfirmed'))
 
 # Logout
 @app.route('/logout')
