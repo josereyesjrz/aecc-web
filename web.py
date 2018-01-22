@@ -456,6 +456,51 @@ def logout():
 	flash('You are now logged out', 'success')
 	return redirect(url_for('login'))
 
+@app.route('/admin')
+@is_logged_in
+@is_admin
+def adminPanel():
+	pendingMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'ACTIVE' and priviledge != 'ADMIN'")
+	return render_template('admin.html', result=pendingMembers)
+
+@app.route('/activate/<string:id>')
+@is_logged_in
+@is_admin
+def activateMembership(id):
+	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ?", [id], True)
+	if result:
+		if result['status'] == "ACTIVE":
+			flash(result['studentFirstName'] + " " + result['studentLastName'] + " is already an active member.", 'warning')
+			return redirect(url_for('adminPanel'))
+	else:
+		flash('User does not exist.', 'danger')
+		return redirect(url_for('adminPanel'))
+	cur = get_db().cursor()
+	cur.execute("UPDATE users SET status='ACTIVE' WHERE id=?",(id))
+	get_db().commit()
+	cur.close()
+	flash(result['studentFirstName'] + " " + result['studentLastName'] + " is now a member!", "success")
+	return redirect(url_for('adminPanel'))
+
+@app.route('/suspend/<string:id>')
+@is_logged_in
+@is_admin
+def suspendMembership(id, studentFirstName="", studentLastName=""):
+	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ?", [id], True)
+	if result:
+		if result['status'] == "SUSPENDED":
+			flash(result['studentFirstName'] + " " + result['studentLastName'] + " is already suspended.", 'warning')
+			return redirect(url_for('adminPanel'))
+	else:
+		flash('User does not exist.', 'danger')
+		return redirect(url_for('adminPanel'))
+	cur = get_db().cursor()
+	cur.execute("UPDATE users SET status='SUSPENDED' WHERE id=?",(id))
+	get_db().commit()
+	cur.close()
+	flash(result['studentFirstName'] + " " + result['studentLastName'] + " has been suspended!", "danger")
+	return redirect(url_for('adminPanel'))
+
 # Dashboard
 @app.route('/dashboard')
 @is_logged_in
@@ -470,17 +515,6 @@ def dashboard():
 	else:
 		msg = 'No Articles Found'
 		return render_template('dashboard.html', msg=msg)
-
-# === UPLOADS === #
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-	return send_from_directory(app.config['UPLOAD_FOLDER'],
-							   filename)
-
-def allowed_file(filename):
-	return '.' in filename and \
-		   filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # === PROFILE === #
 
@@ -579,20 +613,16 @@ def user_profile(id):
 	if user == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
+	#isAdminAccount = query_db("SELECT id FROM users WHERE email=? and priviledge = 'ADMIN'", (user['email'],))
+	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and priviledge='ADMIN'", [id], True)
+	if isAdminAccount:
+		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and priviledge!='ADMIN'", [isAdminAccount['email']], True)
+		if hasSameEmail:
+			return redirect(url_for('user_profile', id=hasSameEmail['id']))
+		else:
+			flash('User does not exist in our database', 'danger')
+			return render_template('404.html')
 	return render_template('user_profile.html', user=user)
-
-# class TagListField(Field):
-#     widget = TextInput()
-#     def _value(self):
-#         if self.data:
-#             return u', '.join(self.data)
-#         else:
-#             return u''
-#     def process_formdata(self, valuelist):
-#         if valuelist:
-#             self.data = [x.strip() for x in valuelist[0].split(',')]
-#         else:
-#             self.data = []
 
 # Article Form Class
 class PostForm(FlaskForm):

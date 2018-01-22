@@ -9,7 +9,10 @@
 	{% else %}
 	<img src="{{ url_for('static', filename='uploads/'+result['customPicture']) }}" height="25" width="25">
 	{% endif %}
-  	<a href="{{ url_for('user_profile', id=result['id']) }}"> {{result['studentFirstName'] + " " + result['studentLastName']}}</a>
+  	<a href="{{ url_for('user_profile', id=result['id']) }}"><strong>{{result['studentFirstName'] + " " + result['studentLastName']}}</strong></a>
+  {% if session.admin %}
+  <a href="{{ url_for('suspendMembership', id=result['id']) }}">(Suspend)</a>
+  {% endif %}
   </ul>
   {% endfor %}
 {% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+  <h1>Admin Panel</h1>
+  {% for pending in result %}
+  	<div>
+  	{% if pending['customPicture'] == "FALSE" %}
+  		<img src="{{ pending['email'] | gravatar }}" height="25" width="25">
+	{% else %}
+		<img src="{{ url_for('static', filename='uploads/'+pending['customPicture']) }}" height="25" width="25">
+	{% endif %}
+	<strong>{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</strong> 
+	: [{{ pending['status'] }}] <a href="{{ url_for('activateMembership', id=pending['id']) }}">(Activate)</a>
+	</div>
+  {% endfor %}
+{% endblock %}
