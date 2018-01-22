@@ -44,7 +44,7 @@ TRANSACTION_SUCCESS_STATUSES = [
     braintree.Transaction.Status.SubmittedForSettlement
 ]
 
-directivaMemberList = ['president', 'vicepresident', 'secretary', 'treasurer', 'publicrelationist' , 'vocal1', 'vocal2', 'vocal3']
+directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
 DATABASE = 'database/database.db'
 
 gravatar = Gravatar(app,
@@ -519,7 +519,7 @@ def dashboard():
 # === PROFILE === #
 
 class AdminForm(FlaskForm):
-	uploadFile = FileField("Upload Avatar")
+	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
 	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
 	# Add regular expression to check if endswith('@upr.edu')
@@ -533,7 +533,7 @@ class AdminForm(FlaskForm):
 	confirm = PasswordField('Confirm Password')
 
 class ProfileForm(FlaskForm):
-	uploadFile = FileField("Upload Avatar")
+	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
 	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
 	password = PasswordField('Current Password', [
@@ -557,9 +557,9 @@ def edit_profile(id):
 		return render_template('404.html')
 	# Get form
 	if session['id'] == int(id) and session['admin']:
-		form = AdminForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
+		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
 	else:
-		form = ProfileForm(request.form, studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
+		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Admin can bypass password verification or user must match their password
 		if session['id'] != int(id) or sha256_crypt.verify(form.password.data, result['password']):
@@ -756,5 +756,4 @@ def delete_post(id):
 #        return redirect(url_for('new_checkout'))
 
 if __name__ == '__main__':
-	ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 	app.run(debug=True)

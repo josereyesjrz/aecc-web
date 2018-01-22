@@ -10,16 +10,21 @@ create table users (
 	priviledge text not null default "MEMBER",
 	status text not null default "PENDING",
 	confirmation boolean not null default 0,
-	confirmed_on text,
+	confirmed_on text default null,
 	customPicture text not null default "FALSE",
 	biography text,
 	date_created text not null default (datetime('now'))
 );
 
 -- DEFAULT ADMIN PASSWORD: aecc-website
-insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc@gmail.com", "president", "Jeffrey", "Chan", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
-insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc@gmail.com", "vicepresident", "Alejandro", "Vega", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
-insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc@gmail.com", "treasurer", "Angelissa", "Aviles", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "president", "Jeffrey", "Chan", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "vicepresident", "Alejandro", "Vega", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "treasurer", "Angelissa", "Aviles", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "pragent", "Isamar", "López", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "secretary", "María", "Ramos", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "boardmember1", "Lillian", "González", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, password, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "boardmember2", "Israel", "Dilán", "$5$rounds=535000$y.MIW5VCLNduVYEG$3YVtYkfSAEOF39OYPnP6qUdQypw5m4pO5ch8rR8bno0", "ADMIN", 1, datetime('now'));
+
 
 drop table if exists courses;
 create table courses (
