@@ -3,6 +3,7 @@ Development of the new AECC website. Project for software engineering class.
 
 # Usar python2.7
 
+Usar "pip install -r requirement.txt"
 `pip install Flask`
 
 `pip install Flask-WTF`
