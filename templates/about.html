@@ -12,6 +12,10 @@
 	<p><strong>{{ member['studentFirstName'] + " " + member['studentLastName'] }}</strong></p>
 	{% if member['studentID'] == "vicepresidente" %}
 	<p>Vice Presidente</p>
+	{% elif member['studentID'] == "pragent" %}
+	<p>Public Relations Agent</p>
+	{% elif "boardmember" in member['studentID'] %}
+	<p>Board Member</p>
 	{% else %}
 	<p>{{member['studentID'].capitalize()}}</p>
 	</div>
