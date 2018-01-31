@@ -29,11 +29,43 @@ insert into users (email, studentID, studentFirstName, studentLastName, password
 drop table if exists courses;
 create table courses (
 	cid integer primary key autoincrement,
-	cname text not null unique,
-	ccode text not null
+	ccode text not null,
+	cname text not null unique
+	
 );
 
-
+insert into courses (ccode, ccname) values ("CCOM3020", "Discrete Mathematics");
+insert into courses (ccode, ccname) values ("CCOM3030", "Introduction to Computer Science");
+insert into courses (ccode, ccname) values ("CCOM3033", "Introduction to Computer Programming");
+insert into courses (ccode, ccname) values ("CCOM3034", "Data Structures");
+insert into courses (ccode, ccname) values ("CCOM3981", "Undergraduate Seminar 1");
+insert into courses (ccode, ccname) values ("CCOM3982", "Undergraduate Seminar 2");
+insert into courses (ccode, ccname) values ("CCOM3986", "Undergraduate Research in Computer Science");
+insert into courses (ccode, ccname) values ("CCOM4017", "Operating Systems");
+insert into courses (ccode, ccname) values ("CCOM4027", "Introduction To Data Management");
+insert into courses (ccode, ccname) values ("CCOM4029", "High Level Programming Languages");
+insert into courses (ccode, ccname) values ("CCOM4030", "Introduction to Software Engineering");
+insert into courses (ccode, ccname) values ("CCOM4065", "Numerical Linear Algebra");
+insert into courses (ccode, ccname) values ("CCOM4086", "Computer Architecture I");
+insert into courses (ccode, ccname) values ("CCOM4087", "Compiler Design");
+insert into courses (ccode, ccname) values ("CCOM4088", "Cybersecurity");
+insert into courses (ccode, ccname) values ("CCOM4205", "Computer Networks");
+insert into courses (ccode, ccname) values ("CCOM4995", "Fun with Programming Interview Problems");
+insert into courses (ccode, ccname) values ("CCOM4995", "Reverse Engineering");
+insert into courses (ccode, ccname) values ("CCOM4995", "Systems and Network Security");
+insert into courses (ccode, ccname) values ("CCOM4995", "Hardware Security");
+insert into courses (ccode, ccname) values ("CCOM4995", "Competitive Programming");
+insert into courses (ccode, ccname) values ("CCOM4995", "Big Data");
+insert into courses (ccode, ccname) values ("CCOM4995", "Computer Graphics");
+insert into courses (ccode, ccname) values ("CCOM4995", "Computer Vision");
+insert into courses (ccode, ccname) values ("CCOM4995", "Parallel Programming");
+insert into courses (ccode, ccname) values ("CCOM4996", "Independent Study in Computer Science");
+insert into courses (ccode, ccname) values ("CCOM5026", "Computer Architecture II");
+insert into courses (ccode, ccname) values ("CCOM5035", "Computability Theory");
+insert into courses (ccode, ccname) values ("CCOM5045", "Introduction to Computational Cell Biology");
+insert into courses (ccode, ccname) values ("CCOM5050", "Design And Analysis Of Algorithms");
+insert into courses (ccode, ccname) values ("CCOM5060", "Parallel Processing");
+insert into courses (ccode, ccname) values ("CCOM5677", "Artificial Intelligence");
 
 -- drop table if exists posts;
 -- create table posts (
