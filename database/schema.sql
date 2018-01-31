@@ -66,6 +66,17 @@ insert into courses (ccode, ccname) values ("CCOM5045", "Introduction to Computa
 insert into courses (ccode, ccname) values ("CCOM5050", "Design And Analysis Of Algorithms");
 insert into courses (ccode, ccname) values ("CCOM5060", "Parallel Processing");
 insert into courses (ccode, ccname) values ("CCOM5677", "Artificial Intelligence");
+insert into courses (ccode, ccname) values ("MATE3018", "Pre Calculus and Analytical Geometry");
+insert into courses (ccode, ccname) values ("MATE3023", "Pre Calculus I");
+insert into courses (ccode, ccname) values ("MATE3024", "Pre Calculus II");
+insert into courses (ccode, ccname) values ("MATE3151", "Calculus I");
+insert into courses (ccode, ccname) values ("MATE3152", "Calculus II");
+insert into courses (ccode, ccname) values ("MATE3325", "Introduction to Discrete Mathematics");
+insert into courses (ccode, ccname) values ("MATE4031", "Linear Algebra");
+insert into courses (ccode, ccname) values ("MATE4061", "Numerical Analysis I");
+insert into courses (ccode, ccname) values ("MATE4080", "Applied Modern Algebra");
+insert into courses (ccode, ccname) values ("MATE4081", "Modern Algebra");
+insert into courses (ccode, ccname) values ("MATE5001", "Probability");
 
 -- drop table if exists posts;
 -- create table posts (
