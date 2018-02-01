@@ -5,10 +5,12 @@ from wtforms import StringField, TextAreaField, BooleanField, PasswordField, val
 from wtforms.fields.html5 import EmailField
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
-from passlib.hash import sha256_crypt
 from functools import wraps
+# Cryptography
+import scrypt
+from base64 import b64encode, b64decode
 #Upload
-from os import path, remove, stat, environ
+from os import path, remove, stat, environ, urandom
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
@@ -198,15 +200,17 @@ def register():
 			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
 				flash('Phone Number already taken.', 'danger')
 			else:
-				password = sha256_crypt.encrypt(str(form.password.data))
+				random_salt = urandom(64)
+				salt = random_salt.encode('hex')
+				password = scrypt.hash(str(form.password.data), random_salt).encode('hex')
 				firstName = form.studentFirstName.data
 				lastName = form.studentLastName.data
 				# Execute query
 				# Pay now
 				if form.payNow.data:
-					insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, firstName, lastName, phoneNumber, "ACTIVE"))
+					insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, salt, firstName, lastName, phoneNumber, "ACTIVE"))
 				else:
-					insert("users", ("email", "studentID", "password", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, firstName, lastName, phoneNumber))
+					insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
 				# Generate and Send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
 				confirm_url = url_for('confirm_email', token=token, _external=True)
@@ -243,16 +247,17 @@ def login():
 		elif username.isdigit() or username in directivaMemberList:
 			validCredentials = True
 		if validCredentials:
-			password_candidate = request.form['password']
+			password_candidate = str(request.form['password'])
 
 			# Get user by username
-			result = query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
+			result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
 				# Get stored hash
-				password = result['password']
-
+				uni_salt = result['salt'].decode('hex')
+				password = result['password'].decode('hex')
 				# Compare Passwords
-				if sha256_crypt.verify(password_candidate, password):
+				print password
+				if scrypt.hash(password_candidate, uni_salt) == password:
 					# Passed
 					session['logged_in'] = True
 					session['username'] = result['studentFirstName']
@@ -391,9 +396,11 @@ def reset_password(token):
 	if token and verified_result:
 		password_submit_form = ResetPasswordSubmit(request.form)
 		if password_submit_form.validate_on_submit():
-			new_password = sha256_crypt.encrypt(str(password_submit_form.password.data))
+			random_salt = urandom(64)
+			new_salt = random_salt.encode('hex')
+			new_password = scrypt.hash(str(password_submit_form.password.data), random_salt).encode('hex')
 			cur = get_db().cursor()
-			cur.execute("UPDATE users SET password=? WHERE id=? and priviledge != 'ADMIN'",(new_password, verified_result))
+			cur.execute("UPDATE users SET password=? salt=? WHERE id=? and priviledge != 'ADMIN'",(new_password, new_salt, verified_result))
 			# Commit to DB
 			get_db().commit()
 			#Close connection
@@ -551,7 +558,7 @@ class ProfileForm(FlaskForm):
 def edit_profile(id):
 	# Get post by id
 	# TODO CAMBIAR EL QUERY PA QUE NO COJA TO
-	result = query_db("SELECT studentFirstName,studentLastName,password,email FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,password,salt,email FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
@@ -562,7 +569,7 @@ def edit_profile(id):
 		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Admin can bypass password verification or user must match their password
-		if session['id'] != int(id) or sha256_crypt.verify(form.password.data, result['password']):
+		if session['id'] != int(id) or scrypt.hash(str(form.password.data), result['salt'].decode('hex')) == result['password'].decode('hex'):
 
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
@@ -577,12 +584,13 @@ def edit_profile(id):
 				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
 			cur = get_db().cursor()
 			if form.new_password.data != "":
-				new_password = sha256_crypt.encrypt(str(form.new_password.data))
+				new_salt = urandom(64).encode('hex')
+				new_password = scrypt.hash(str(form.new_password.data), new_salt).encode('hex')
 				#Execute
 				if filename != "":
-					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, new_password, filename, id))
+					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, salt=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, new_password, new_salt, filename, id))
 				else:
-					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=? WHERE id=?",(studentFirstName, studentLastName, new_password, id))
+					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, salt=? WHERE id=?",(studentFirstName, studentLastName, new_password, new_salt, id))
 			else:
 				if filename != "":
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, filename, id))
