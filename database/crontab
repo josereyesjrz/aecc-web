@@ -1,0 +1,14 @@
+#### NOT TESTED!!!!!!!!!!!!!!!!!
+#### run crontab ./crontab from parent folder to use
+
+MAILTO="aecc.upr@gmail.com"
+
+# 1. minute (0-59)
+# |   2. hour (0-23)
+# |   |   3. day of month (1-31)
+# |   |   |   4. month (1-12)
+# |   |   |   |   5. day of week (0-7: 0 or 7 is Sun, or use names)
+# |   |   |   |   |   6. commandline
+# |   |   |   |   |   |
+#min hr  dom mon dow command
+  0   3   *   *   *  sqlite3 -line database.db 'DELETE FROM users WHERE date_created <= datetime('now', '-7 days') and status = 'PENDING';' >/dev/null
