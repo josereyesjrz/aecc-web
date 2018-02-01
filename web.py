@@ -8,7 +8,6 @@ from flask_wtf.file import FileField, FileAllowed, FileRequired
 from functools import wraps
 # Cryptography
 import scrypt
-from base64 import b64encode, b64decode
 #Upload
 from os import path, remove, stat, environ, urandom
 import glob
@@ -256,7 +255,6 @@ def login():
 				uni_salt = result['salt'].decode('hex')
 				password = result['password'].decode('hex')
 				# Compare Passwords
-				print password
 				if scrypt.hash(password_candidate, uni_salt) == password:
 					# Passed
 					session['logged_in'] = True

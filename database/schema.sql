@@ -25,12 +25,11 @@ insert into users (email, studentID, studentFirstName, studentLastName, password
 insert into users (email, studentID, studentFirstName, studentLastName, password, salt, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "boardmember1", "Lillian", "González", "fc0213b43cee283ac64519fdfa6cafd292c039ae2fe6b47227a9723a34f00763321e785208eb16be114c79f4f19d0962062a62de7b919486432fe3c42baff99d", "5d574ddcd0670b124749e67bde92bb140978a9a6071c8726f0aa1c785715b79d675b9150191d7b406f5298fd9a1767693b1e6c8b0c11e2f6c18cdd563d7e0c64", "ADMIN", 1, datetime('now'));
 insert into users (email, studentID, studentFirstName, studentLastName, password, salt, priviledge, confirmation, confirmed_on) values ("aecc.upr@gmail.com", "boardmember2", "Israel", "Dilán", "00d1c4c4a567986b63de1d83ce05e5b42ed5d4db62b7c4f8e8f43419305eea0e8745d0373a55ab611064238c533633647b80a186218eac68545f2b8d6038b142", "aac3e45d4c006d2134d59cee30518c25eb259fc3f24f5b3dbbfb864f5a7420f5967538837de67dc473915ee39b9e90a86792c21ec0dfe14bf9c419fa624d88d7", "ADMIN", 1, datetime('now'));
 
-
 drop table if exists courses;
 create table courses (
 	cid integer primary key autoincrement,
 	ccode text not null,
-	cname text not null unique
+	ccname text not null unique
 	
 );
 
