@@ -137,29 +137,6 @@ def about():
 	directivaMembers = query_db("SELECT studentID,studentFirstName,studentLastName,customPicture FROM users WHERE priviledge = 'ADMIN'")
 	return render_template('about.html', directiva=directivaMembers)
 
-
-# Articles
-@app.route('/posts')
-def posts():
-	# Create cursor
-	result = query_db("SELECT * FROM posts")
-
-	if result != None:
-		return render_template('posts.html', articles=[articles for articles in result])
-	else:
-		msg = 'No Posts Found'
-		return render_template('posts.html', msg=msg)
-
-
-#Single Article
-@app.route('/posts/<string:id>/')
-def post(id):
-	result = query_db("SELECT * FROM posts WHERE id = %s", (id,), True)
-	if result != None:
-		return render_template('post.html', article=result)
-	else:
-		return 
-
 # Register Form Class
 class RegisterForm(FlaskForm):
 	# Prevent symbols in username
@@ -291,6 +268,7 @@ def is_logged_in(f):
 			return redirect(url_for('login'))
 	return wrap
 
+# Check if the user is an administrator
 def is_admin(f):
 	@wraps(f)
 	def wrap(*args, **kwargs):
@@ -301,6 +279,7 @@ def is_admin(f):
 			return redirect(url_for('login'))
 	return wrap
 
+# Check if the user is editing their own profile or an admin is editing the user's profile
 def is_allowed_edit(f):
 	@wraps(f)
 	def wrap(*args, **kwargs):
@@ -310,6 +289,7 @@ def is_allowed_edit(f):
 			flash('Unauthorized: Attempting to modify information from other user.', 'danger')
 			return redirect(url_for('dashboard'))
 	return wrap
+
 
 def check_confirmed(func):
 	@wraps(func)
@@ -429,6 +409,7 @@ def confirm_email(token):
 			get_db().commit()
 			#Close connection
 			cur.close()
+			session['confirmation'] = 1
 			flash('You have confirmed your account. Thanks!', 'success')
 	else:
 		return render_template('404.html')
@@ -629,87 +610,6 @@ def user_profile(id):
 			flash('User does not exist in our database', 'danger')
 			return render_template('404.html')
 	return render_template('user_profile.html', user=user)
-
-# Article Form Class
-class PostForm(FlaskForm):
-	title = StringField('Title', [validators.Length(min=1, max=200)])
-	body = TextAreaField('Body', [validators.Length(min=30)])
-
-# Add Article
-@app.route('/add_post', methods=['GET', 'POST'])
-@is_logged_in
-def add_post():
-	form = PostForm(request.form)
-
-	if request.method == 'POST' and form.validate():
-		title = form.title.data
-		body = form.body.data
-
-		# Execute
-		insert("posts", ("title","author_id","body","date_created"), (title,session['id'],body,datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-
-		flash('Article Created', 'success')
-
-		return redirect(url_for('dashboard'))
-
-	return render_template('add_post.html', form=form)
-
-# Edit Article
-@app.route('/edit_post/<string:id>', methods=['GET', 'POST'])
-@is_logged_in
-def edit_post(id):
-
-	# Get post by id
-	result = query_db("SELECT * FROM posts WHERE id = ?", (id,), True)
-
-	# Get form
-	form = PostForm(request.form)
-
-	# Populate article form fields
-	form.title.data = result['title']
-	form.body.data = result['body']
-
-	if request.method == 'POST' and form.validate():
-		title = request.form['title']
-		body = request.form['body']
-
-		cur = get_db().cursor()
-
-		app.logger.info(title)
-
-		# Execute
-		cur.execute ("UPDATE posts SET title=?, body=? WHERE id=?",(title, body, id))
-		# Commit to DB
-		get_db().commit()
-
-		#Close connection
-		cur.close()
-
-		flash('Article Updated', 'success')
-
-		return redirect(url_for('dashboard'))
-
-	return render_template('edit_post.html', form=form)
-
-# Delete Article
-@app.route('/delete_post/<string:id>', methods=['POST'])
-@is_logged_in
-def delete_post(id):
-	# Create cursor
-	cur = get_db().cursor()
-
-	# Execute
-	cur.execute("DELETE FROM posts WHERE id = ?", (id,))
-
-	# Commit to DB
-	get_db().commit()
-
-	#Close connection
-	cur.close()
-
-	flash('Post Deleted', 'success')
-
-	return redirect(url_for('dashboard'))
 
 #Generate token
 #@app.route("/client_token", methods=["GET"])
