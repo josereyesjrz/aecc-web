@@ -13,21 +13,21 @@ from os import path, remove, stat, environ, urandom
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
+# Email confirmation 'emailToken.py'
+from flask_mail import Mail
+import emailToken
 # Transactions
-#import transaction
+# import transaction
+from dotenv import load_dotenv
+import braintree
 # Forgot Password
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 
-# Email confirmation 'emailToken.py'
-from flask_mail import Mail
 mail = Mail(app)
-import emailToken
 
-from dotenv import load_dotenv
-import braintree
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
 
