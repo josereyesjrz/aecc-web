@@ -28,81 +28,134 @@ app.config.from_pyfile('config.py')
 
 mail = Mail(app)
 
+# Check if user logged in
+def is_logged_in(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'logged_in' in session:
+			return f(*args, **kwargs)
+		else:
+			flash('Unauthorized, Please login', 'danger')
+			return redirect(url_for('login'))
+	return wrap
+
+# Check if the user is an administrator
+def is_admin(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True):
+			return f(*args, **kwargs)
+		else:
+			flash('Unauthorized: You do not have sufficient priviledges.', 'danger')
+			return redirect(url_for('login'))
+	return wrap
+
+# Check if the user is editing their own profile or an admin is editing the user's profile
+def is_allowed_edit(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True) or str(kwargs['id']) == str(session['id']):
+			return f(*args, **kwargs)
+		else:
+			flash('Unauthorized: Attempting to modify information from other user.', 'danger')
+			return redirect(url_for('edit_profile', id=session['id']))
+	return wrap
+
+def anonymous_user_required(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'logged_in' not in session:
+			return f(*args, **kwargs)
+		else:
+			flash('Logout to use this feature.', 'danger')
+			return redirect(url_for('index'))
+	return wrap
+
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
 
 braintree.Configuration.configure(
-    environ.get('BT_ENVIRONMENT'),
-    environ.get('BT_MERCHANT_ID'),
-    environ.get('BT_PUBLIC_KEY'),
-    environ.get('BT_PRIVATE_KEY')
+	environ.get('BT_ENVIRONMENT'),
+	environ.get('BT_MERCHANT_ID'),
+	environ.get('BT_PUBLIC_KEY'),
+	environ.get('BT_PRIVATE_KEY')
 )
 
 TRANSACTION_SUCCESS_STATUSES = [
-    braintree.Transaction.Status.Authorized,
-    braintree.Transaction.Status.Authorizing,
-    braintree.Transaction.Status.Settled,
-    braintree.Transaction.Status.SettlementConfirmed,
-    braintree.Transaction.Status.SettlementPending,
-    braintree.Transaction.Status.Settling,
-    braintree.Transaction.Status.SubmittedForSettlement
+	braintree.Transaction.Status.Authorized,
+	braintree.Transaction.Status.Authorizing,
+	braintree.Transaction.Status.Settled,
+	braintree.Transaction.Status.SettlementConfirmed,
+	braintree.Transaction.Status.SettlementPending,
+	braintree.Transaction.Status.Settling,
+	braintree.Transaction.Status.SubmittedForSettlement
 ]
 
 braintree.Configuration.configure(braintree.Environment.Sandbox,
-                  merchant_id="ykqfttjmkjxqh34f",
-                  public_key="qznsjn6yymz2b35y",
-                  private_key="7920b35f630e2c714320dee79cbcd8dd")
+				  merchant_id="ykqfttjmkjxqh34f",
+				  public_key="qznsjn6yymz2b35y",
+				  private_key="7920b35f630e2c714320dee79cbcd8dd")
 
 
 #Generate token
 @app.route("/client_token", methods=["GET"])
+@is_logged_in
 def client_token():
 	return braintree.ClientToken.generate()
 
 @app.route("/checkout", methods=["POST"])
+@is_logged_in
 def create_purchase():
 	nonce_from_the_client = request.form["payment_method_nonce"]
 	#Use payment method nonce here...
 
 @app.route('/checkouts/new', methods=['GET'])
+@is_logged_in
 def new_checkout():
-   client_token = braintree.ClientToken.generate()
-   return render_template('payment.html', client_token=client_token)
+	client_token = braintree.ClientToken.generate()
+	return render_template('payment.html', client_token=client_token)
 
 @app.route('/checkouts/<transaction_id>', methods=['GET'])
+@is_logged_in
 def show_checkout(transaction_id):
-   transaction = braintree.Transaction.find(transaction_id)
-   result = {}
-   if transaction.status in TRANSACTION_SUCCESS_STATUSES:
-       result = {
-           'header': 'Sweet Success!',
-           'icon': 'success',
-           'message': 'Your test transaction has been successfully processed. See the Braintree API response and try again.'
-       }
-   else:
-       result = {
-           'header': 'Transaction Failed',
-           'icon': 'fail',
-           'message': 'Your test transaction has a status of ' + transaction.status + '. See the Braintree API response and try again.'
-       }
+	transaction = braintree.Transaction.find(transaction_id)
+	result = {}
+	if transaction.status in TRANSACTION_SUCCESS_STATUSES:
+		result = {
+			'header': 'Sweet Success!',
+			'icon': 'success',
+			'message': 'Your test transaction has been successfully processed. See the Braintree API response and try again.'
+		}
+		cur = get_db().cursor()
+		cur.execute("UPDATE users SET status=? WHERE id=?",('ACTIVE', session['id']))
+		get_db().commit()
+		#Close connection
+		cur.close()
+	else:
+		result = {
+			'header': 'Transaction Failed',
+			'icon': 'fail',
+			'message': 'Your test transaction has a status of ' + transaction.status + '. See the Braintree API response and try again.'
+		}
 
-   return render_template('show_payment.html', transaction=transaction, result=result)
+	return render_template('show_payment.html', transaction=transaction, result=result)
 
 @app.route('/checkouts', methods=['POST'])
+@is_logged_in
 def create_checkout():
    result = braintree.Transaction.sale({
-       'amount': request.form['amount'],
-       'payment_method_nonce': request.form['payment_method_nonce'],
-       'options': {
-           "submit_for_settlement": True
-       }
+	   'amount': request.form['amount'],
+	   'payment_method_nonce': request.form['payment_method_nonce'],
+	   'options': {
+		   "submit_for_settlement": True
+	   }
    })
 
    if result.is_success or result.transaction:
-       return redirect(url_for('show_checkout',transaction_id=result.transaction.id))
+	   return redirect(url_for('show_checkout',transaction_id=result.transaction.id))
    else:
-       for x in result.errors.deep_errors: flash('Error: %s: %s' % (x.code, x.message))
-       return redirect(url_for('new_checkout'))
+	   for x in result.errors.deep_errors: flash('Error: %s: %s' % (x.code, x.message))
+	   return redirect(url_for('new_checkout'))
 
 
 directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
@@ -211,16 +264,6 @@ class RegisterForm(FlaskForm):
 	# Check to redirect to transaction payment
 	payNow = BooleanField("Pay Membership now?")
 
-def anonymous_user_required(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'logged_in' not in session:
-			return f(*args, **kwargs)
-		else:
-			flash('Logout to use this feature.', 'danger')
-			return redirect(url_for('index'))
-	return wrap
-
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
 @anonymous_user_required
@@ -247,10 +290,10 @@ def register():
 				lastName = form.studentLastName.data
 				# Execute query
 				# Pay now
-				if form.payNow.data:
-					insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, salt, firstName, lastName, phoneNumber, "ACTIVE"))
-				else:
-					insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
+				#if form.payNow.data:
+				#	insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, salt, firstName, lastName, phoneNumber, "ACTIVE"))
+				#else:
+				insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
 				# Generate and Send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
 				confirm_url = url_for('confirm_email', token=token, _external=True)
@@ -267,7 +310,10 @@ def register():
 				session['customPicture'] = "FALSE"
 				session['confirmation'] = 0
 				session['admin'] = False
-				return redirect(url_for('unconfirmed'))
+				if form.payNow.data:
+					return redirect(url_for('new_checkout'))
+				else:
+					return redirect(url_for('unconfirmed'))
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
 	return render_template('register.html', form=form)
@@ -321,39 +367,6 @@ def login():
 			flash("Invalid username or password.", 'danger')
 
 	return render_template('login.html')
-
-# Check if user logged in
-def is_logged_in(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'logged_in' in session:
-			return f(*args, **kwargs)
-		else:
-			flash('Unauthorized, Please login', 'danger')
-			return redirect(url_for('login'))
-	return wrap
-
-# Check if the user is an administrator
-def is_admin(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True):
-			return f(*args, **kwargs)
-		else:
-			flash('Unauthorized: You do not have sufficient priviledges.', 'danger')
-			return redirect(url_for('login'))
-	return wrap
-
-# Check if the user is editing their own profile or an admin is editing the user's profile
-def is_allowed_edit(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True) or str(kwargs['id']) == str(session['id']):
-			return f(*args, **kwargs)
-		else:
-			flash('Unauthorized: Attempting to modify information from other user.', 'danger')
-			return redirect(url_for('edit_profile', id=session['id']))
-	return wrap
 
 # ==== Forgot Password ====
 # https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
