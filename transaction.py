@@ -1,6 +1,8 @@
 from web import app
 import braintree
 from dotenv import load_dotenv
+from os import environ
+
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
 
