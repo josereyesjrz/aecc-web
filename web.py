@@ -13,8 +13,8 @@ from os import path, remove, stat, environ, urandom
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
-#Transactions
-#import transaction
+# Transactions
+# import transaction
 # Forgot Password
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
