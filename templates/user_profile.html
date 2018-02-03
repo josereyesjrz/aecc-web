@@ -3,9 +3,12 @@
 {% block body %}
   <h1>{{user['studentFirstName'] + " " + user['studentLastName']}}</h1>
   	{% if user['customPicture'] == "FALSE" %}
-  	<img src="{{ user['email'] | gravatar }}" height="100" width="100">
+  		<img src="{{ user['email'] | gravatar }}" height="100" width="100">
 	{% else %}
-	<img src="{{ url_for('static', filename='uploads/'+user['customPicture']) }}" height="100" width="100">
+		<img src="{{ url_for('static', filename='uploads/'+user['customPicture']) }}" height="100" width="100">
+	{% endif %}
+	{% if user['id'] == session.id %}
+		<a class="btn btn-success" href="{{url_for('edit_profile', id=session.id)}}">(Edit Profile)</a>
 	{% endif %}
   <p>Biography</p>
 {% endblock %}

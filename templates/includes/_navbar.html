@@ -28,10 +28,10 @@
                 <img src="{{ url_for('static', filename='uploads/'+session.customPicture) }}" height="25" width="25">
                 {% endif %}
                 </a></li>
-              <li><a href="/dashboard">Dashboard</a></li>
-              <li><a href="/logout">Logout</a></li>
+              <li><a href="{{ url_for('user_profile', id=session.id) }}">Profile</a></li>
+              <li><a href="{{ url_for('logout') }}">Logout</a></li>
             {% else %}
-              <li><a href="/register">Register</a></li>
+              <li><a href="{{ url_for('register') }}">Register</a></li>
               <li><button type="button" class="btn btn-default" data-toggle="modal" style="margin-top:9px;" data-target="#myModal">Login</button></li>
               <!-- Modal -->
               <div id="myModal" class="modal fade" role="dialog">

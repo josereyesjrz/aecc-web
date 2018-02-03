@@ -77,15 +77,6 @@ insert into courses (ccode, ccname) values ("MATE4080", "Applied Modern Algebra"
 insert into courses (ccode, ccname) values ("MATE4081", "Modern Algebra");
 insert into courses (ccode, ccname) values ("MATE5001", "Probability");
 
--- drop table if exists posts;
--- create table posts (
--- 	id integer primary key autoincrement,
--- 	title text not null,
--- 	author_id integer not null,
--- 	body text not null,
--- 	date_created text not null
--- );
-
 drop table if exists transactions;
 create table transactions (
 	tid integer primary key autoincrement,

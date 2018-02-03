@@ -152,11 +152,8 @@ class RegisterForm(FlaskForm):
 		validators.EqualTo('confirm', message='Passwords do not match')
 	])
 	confirm = PasswordField('Confirm Password')
-	#boolean Field
-	#Here
+	# Check to redirect to transaction payment
 	payNow = BooleanField("Pay Membership now?")
-	# validators.Optional(strip_whitespace=True)
-	# validators.Regexp(regex= , flags= , message)
 
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
@@ -243,7 +240,7 @@ def login():
 					session['admin'] = True if result['priviledge'] == "ADMIN" else False
 
 					#flash('You are now logged in', 'success')
-					return redirect(url_for('dashboard'))
+					return redirect(url_for('user_profile', id=session['id']))
 				else:
 					flash("Invalid username or password.", 'danger')
 					#error = 'Username and/or Password is incorrect'
@@ -287,19 +284,8 @@ def is_allowed_edit(f):
 			return f(*args, **kwargs)
 		else:
 			flash('Unauthorized: Attempting to modify information from other user.', 'danger')
-			return redirect(url_for('dashboard'))
+			return redirect(url_for('edit_profile', id=session['id']))
 	return wrap
-
-
-def check_confirmed(func):
-	@wraps(func)
-	def decorated_function(*args, **kwargs):
-		if not session['confirmation']:
-			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
-			#flash('Please confirm your account! Didn\'t get the email?', 'warning')
-		return func(*args, **kwargs)
-
-	return decorated_function
 
 # ==== Forgot Password ====
 # https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
@@ -327,7 +313,6 @@ def get_token(id, expiration=1800):
 		s = Serializer(app.config['SECRET_KEY'], expiration)
 		return s.dumps({'user': id}).decode('utf-8')
 
-#@staticmethod
 # TODO Mejorar la seguridad de esto
 def verify_token(token):
 	s = Serializer(app.config['SECRET_KEY'])
@@ -347,7 +332,7 @@ def anonymous_user_required(f):
 			return f(*args, **kwargs)
 		else:
 			flash('Logout to reset your password.', 'danger')
-			return redirect(url_for('dashboard'))
+			return redirect(url_for('index'))
 	return wrap
 
 @app.route('/reset-password', methods=['GET', 'POST'])
@@ -419,7 +404,8 @@ def confirm_email(token):
 @is_logged_in
 def unconfirmed():
 	if session['confirmation']:
-		return redirect(url_for('dashboard'))
+		flash('Account already confirmed.', 'warning')
+		return redirect(url_for('user_profile', id=session['id']))
 	flash('Please confirm your account!', 'warning')
 	return render_template('unconfirmed.html')
 
@@ -487,21 +473,6 @@ def suspendMembership(id, studentFirstName="", studentLastName=""):
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " has been suspended!", "danger")
 	return redirect(url_for('adminPanel'))
 
-# Dashboard
-@app.route('/dashboard')
-@is_logged_in
-@check_confirmed
-def dashboard():
-
-	# Get articles
-	result = query_db("SELECT * FROM posts")
-
-	if result != None:
-		return render_template('dashboard.html', articles=[articles for articles in result])
-	else:
-		msg = 'No Articles Found'
-		return render_template('dashboard.html', msg=msg)
-
 # === PROFILE === #
 
 class AdminForm(FlaskForm):
@@ -562,9 +533,10 @@ def edit_profile(id):
 						remove(img)
 				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
 			cur = get_db().cursor()
-			if form.new_password.data != "":
-				new_salt = urandom(64).encode('hex')
-				new_password = scrypt.hash(str(form.new_password.data), new_salt).encode('hex')
+			if str(form.new_password.data) != "":
+				random_salt = urandom(64)
+				new_salt = random_salt.encode('hex')
+				new_password = scrypt.hash(str(form.new_password.data), random_salt).encode('hex')
 				#Execute
 				if filename != "":
 					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, salt=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, new_password, new_salt, filename, id))
@@ -595,12 +567,11 @@ def edit_profile(id):
 @app.route('/user/<string:id>')
 def user_profile(id):
 	# Get post by id
-	user = query_db("SELECT studentFirstName,studentLastName,email,biography,customPicture FROM users WHERE id = ?", [id], True)
+	user = query_db("SELECT id,studentFirstName,studentLastName,email,biography,customPicture FROM users WHERE id = ?", [id], True)
 	# TODO: Query the courses taken by that user
 	if user == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
-	#isAdminAccount = query_db("SELECT id FROM users WHERE email=? and priviledge = 'ADMIN'", (user['email'],))
 	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and priviledge='ADMIN'", [id], True)
 	if isAdminAccount:
 		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and priviledge!='ADMIN'", [isAdminAccount['email']], True)
@@ -609,6 +580,12 @@ def user_profile(id):
 		else:
 			flash('User does not exist in our database', 'danger')
 			return render_template('404.html')
+	# Check if the user is logged in and is their own profile page
+	if 'logged_in' in session and session['id'] == id:
+		# Check if the user's account is confirmed
+		if not session['confirmation']:
+			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
+		return render_template('user_profile.html', user=user)
 	return render_template('user_profile.html', user=user)
 
 #Generate token

@@ -7,7 +7,7 @@ def generate_confirmation_token(email):
     serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
     return serializer.dumps(email, salt=app.config['SECURITY_PASSWORD_SALT'])
 
-
+# Confirmation url will be available for 1 hour
 def confirm_token(token, expiration=3600):
     serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
     try:
@@ -20,6 +20,7 @@ def confirm_token(token, expiration=3600):
         return False
     return email
 
+# Template for sending email
 def send_email(to, subject, template):
     msg = Message(
         subject,
