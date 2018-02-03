@@ -155,8 +155,19 @@ class RegisterForm(FlaskForm):
 	# Check to redirect to transaction payment
 	payNow = BooleanField("Pay Membership now?")
 
+def anonymous_user_required(f):
+	@wraps(f)
+	def wrap(*args, **kwargs):
+		if 'logged_in' not in session:
+			return f(*args, **kwargs)
+		else:
+			flash('Logout to use this feature.', 'danger')
+			return redirect(url_for('index'))
+	return wrap
+
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
+@anonymous_user_required
 def register():
 	form = RegisterForm(request.form)
 	if request.method == 'POST' and form.validate():
@@ -207,6 +218,7 @@ def register():
 
 # User login
 @app.route('/login', methods=['GET', 'POST'])
+@anonymous_user_required
 def login():
 	if request.method == 'POST':
 		logging_with_email = False
@@ -324,16 +336,6 @@ def verify_token(token):
 	if id:
 		return id
 	return None
-
-def anonymous_user_required(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'logged_in' not in session:
-			return f(*args, **kwargs)
-		else:
-			flash('Logout to reset your password.', 'danger')
-			return redirect(url_for('index'))
-	return wrap
 
 @app.route('/reset-password', methods=['GET', 'POST'])
 @anonymous_user_required
