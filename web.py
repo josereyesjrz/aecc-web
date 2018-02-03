@@ -14,36 +14,17 @@ import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
 #Transactions
-import braintree
-from dotenv import load_dotenv
-# Email confirmation 'emailToken.py'
-import emailToken
-from flask_mail import Mail
+#import transaction
 # Forgot Password
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
-dotenv_path = 'mycred.env'
-load_dotenv(dotenv_path)
+
+# Email confirmation 'emailToken.py'
+from flask_mail import Mail
 mail = Mail(app)
-
-braintree.Configuration.configure(
-    environ.get('BT_ENVIRONMENT'),
-    environ.get('BT_MERCHANT_ID'),
-    environ.get('BT_PUBLIC_KEY'),
-    environ.get('BT_PRIVATE_KEY')
-)
-
-TRANSACTION_SUCCESS_STATUSES = [
-    braintree.Transaction.Status.Authorized,
-    braintree.Transaction.Status.Authorizing,
-    braintree.Transaction.Status.Settled,
-    braintree.Transaction.Status.SettlementConfirmed,
-    braintree.Transaction.Status.SettlementPending,
-    braintree.Transaction.Status.Settling,
-    braintree.Transaction.Status.SubmittedForSettlement
-]
+import emailToken
 
 directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
 DATABASE = 'database/database.db'
@@ -57,10 +38,6 @@ gravatar = Gravatar(app,
 					use_ssl=False,
 					base_url=None)
 
-braintree.Configuration.configure(braintree.Environment.Sandbox,
-								  merchant_id="ykqfttjmkjxqh34f",
-								  public_key="qznsjn6yymz2b35y",
-								  private_key="7920b35f630e2c714320dee79cbcd8dd")
 
 def get_db():
 	db = getattr(g, '_database', None)
@@ -325,7 +302,6 @@ def get_token(id, expiration=1800):
 		s = Serializer(app.config['SECRET_KEY'], expiration)
 		return s.dumps({'user': id}).decode('utf-8')
 
-# TODO Mejorar la seguridad de esto
 def verify_token(token):
 	s = Serializer(app.config['SECRET_KEY'])
 	try:
@@ -508,15 +484,15 @@ class ProfileForm(FlaskForm):
 @is_logged_in
 @is_allowed_edit
 def edit_profile(id):
-	# Get post by id
-	# TODO CAMBIAR EL QUERY PA QUE NO COJA TO
+	# Get profile by id
 	result = query_db("SELECT studentFirstName,studentLastName,password,salt,email FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
-	# Get form
+	# If admin, get different form with admin email
 	if session['id'] == int(id) and session['admin']:
 		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
+	# Else the user has the same id or the admin is in another users info
 	else:
 		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
 	if request.method == 'POST' and form.validate_on_submit():
