@@ -14,9 +14,6 @@
             <li><a href="{{ url_for('index') }}">Home</a></li>
             <li><a href="{{ url_for('members') }}">Members</a></li>
             <li><a href="{{ url_for('about') }}">About</a></li>
-            {% if session.admin %}
-            <li><a href="{{ url_for('adminPanel') }}">Admin Panel</a></li>
-            {% endif %}
           </ul>
 
           <ul class="nav navbar-nav navbar-right">
@@ -28,7 +25,11 @@
                 <img src="{{ url_for('static', filename='uploads/'+session.customPicture) }}" height="25" width="25">
                 {% endif %}
                 </a></li>
+              {% if session.admin %}
+              <li><a href="{{ url_for('adminPanel') }}">Admin Panel</a></li>
+              {% else %}
               <li><a href="{{ url_for('user_profile', id=session.id) }}">Profile</a></li>
+              {% endif %}
               <li><a href="{{ url_for('logout') }}">Logout</a></li>
             {% else %}
               <li><a href="{{ url_for('register') }}">Register</a></li>

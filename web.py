@@ -1,11 +1,10 @@
 from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory, Markup
-import sqlite3
+
 from datetime import datetime
 from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
 from wtforms.fields.html5 import EmailField
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
-from functools import wraps
 # Cryptography
 import scrypt
 #Upload
@@ -28,48 +27,8 @@ app.config.from_pyfile('config.py')
 
 mail = Mail(app)
 
-# Check if user logged in
-def is_logged_in(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'logged_in' in session:
-			return f(*args, **kwargs)
-		else:
-			flash('Unauthorized, Please login', 'danger')
-			return redirect(url_for('login'))
-	return wrap
-
-# Check if the user is an administrator
-def is_admin(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True):
-			return f(*args, **kwargs)
-		else:
-			flash('Unauthorized: You do not have sufficient priviledges.', 'danger')
-			return redirect(url_for('login'))
-	return wrap
-
-# Check if the user is editing their own profile or an admin is editing the user's profile
-def is_allowed_edit(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True) or str(kwargs['id']) == str(session['id']):
-			return f(*args, **kwargs)
-		else:
-			flash('Unauthorized: Attempting to modify information from other user.', 'danger')
-			return redirect(url_for('edit_profile', id=session['id']))
-	return wrap
-
-def anonymous_user_required(f):
-	@wraps(f)
-	def wrap(*args, **kwargs):
-		if 'logged_in' not in session:
-			return f(*args, **kwargs)
-		else:
-			flash('Logout to use this feature.', 'danger')
-			return redirect(url_for('index'))
-	return wrap
+from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
+from db import get_db, close_connection, insert, query_db
 
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
@@ -159,7 +118,6 @@ def create_checkout():
 
 
 directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
-DATABASE = 'database/database.db'
 
 gravatar = Gravatar(app,
 					size=100,
@@ -170,39 +128,6 @@ gravatar = Gravatar(app,
 					use_ssl=False,
 					base_url=None)
 
-
-def get_db():
-	db = getattr(g, '_database', None)
-	if db is None:
-		db = g._database = sqlite3.connect(DATABASE)
-		db.row_factory = sqlite3.Row
-	return db
-
-@app.teardown_appcontext
-def close_connection(exception):
-	db = getattr(g, '_database', None)
-	if db is not None:
-		db.close()
-
-def insert(table, fields=(), values=()):
-	# g.db is the database connection
-	cur = get_db().cursor()
-	query = 'INSERT INTO %s (%s) VALUES (%s)' % (
-		table,
-		', '.join(fields),
-		', '.join(['?'] * len(values))
-	)
-	cur.execute(query, values)
-	get_db().commit()
-	id = cur.lastrowid
-	cur.close()
-	return id
-
-def query_db(query, args=(), one=False):
-	cur = get_db().execute(query, args)
-	rv = cur.fetchall()
-	cur.close()
-	return (rv[0] if rv else None) if one else rv
 
 # === Fixing cached static files in Flask ===
 # https://gist.github.com/Ostrovski/f16779933ceee3a9d181
@@ -354,6 +279,8 @@ def login():
 					session['admin'] = True if result['priviledge'] == "ADMIN" else False
 
 					#flash('You are now logged in', 'success')
+					if session['admin']:
+						return redirect(url_for('adminPanel'))
 					return redirect(url_for('user_profile', id=session['id']))
 				else:
 					flash("Invalid username or password.", 'danger')
