@@ -143,19 +143,19 @@ def show_checkout(transaction_id):
 @app.route('/checkouts', methods=['POST'])
 @is_logged_in
 def create_checkout():
-   result = braintree.Transaction.sale({
-	   'amount': request.form['amount'],
-	   'payment_method_nonce': request.form['payment_method_nonce'],
-	   'options': {
-		   "submit_for_settlement": True
-	   }
-   })
+	result = braintree.Transaction.sale({
+		'amount': request.form['amount'],
+		'payment_method_nonce': request.form['payment_method_nonce'],
+		'options': {
+			"submit_for_settlement": True
+		}
+	})
 
-   if result.is_success or result.transaction:
-	   return redirect(url_for('show_checkout',transaction_id=result.transaction.id))
-   else:
-	   for x in result.errors.deep_errors: flash('Error: %s: %s' % (x.code, x.message))
-	   return redirect(url_for('new_checkout'))
+	if result.is_success or result.transaction:
+		return redirect(url_for('show_checkout',transaction_id=result.transaction.id))
+	else:
+		for x in result.errors.deep_errors: flash('Error: %s: %s' % (x.code, x.message))
+		return redirect(url_for('new_checkout'))
 
 
 directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
