@@ -195,12 +195,11 @@ class RegisterForm(FlaskForm):
 def register():
 	form = RegisterForm(request.form)
 	if request.method == 'POST' and form.validate():
-		email = form.email.data.lower()
+		email = str(form.email.data).lower()
 		if email.endswith("@upr.edu"):
 			studentID = str(form.studentID.data)
 			phoneNumber = str(form.phoneNumber.data)
-
-			# Check that username and email are unique
+			# Check that student number, email and phone number are unique
 			if len(query_db("SELECT id FROM users WHERE studentID = ?", [studentID])):
 				flash('Student Number already taken.', 'danger')
 			elif len(query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email])):
@@ -208,37 +207,44 @@ def register():
 			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
 				flash('Phone Number already taken.', 'danger')
 			else:
+				# Generate a random salt
 				random_salt = urandom(64)
+				# Encode the salt to store its hex value into the database
 				salt = random_salt.encode('hex')
+				# Generate the hash using the password and salt
 				password = scrypt.hash(str(form.password.data), random_salt).encode('hex')
-				firstName = form.studentFirstName.data
-				lastName = form.studentLastName.data
-				# Execute query
-				# Pay now
-				#if form.payNow.data:
-				#	insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber", "status"), (email, studentID, password, salt, firstName, lastName, phoneNumber, "ACTIVE"))
-				#else:
-				insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
-				# Generate and Send the confirmation email
+				# Store the values into variables to avoid repetition
+				firstName = str(form.studentFirstName.data)
+				lastName = str(form.studentLastName.data)
+				
+				# Insert the user into the database with all corresponding fields and return its table row id
+				userID = insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
+				
+				# Generate and send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
 				confirm_url = url_for('confirm_email', token=token, _external=True)
 				html = render_template('activate.html', confirm_url=confirm_url)
 				subject = "Please confirm your email"
 				emailToken.send_email(email, subject, html)
-
+				# Flash the user with a successful registration and login. Remind to verify email address.
 				flash('You are now registered and logged in. A confirmation email has been sent to verify your account.', 'success')
-				userID = query_db("SELECT id FROM users WHERE studentID=?", (studentID,), True)
-				session['id'] = userID['id']
+				
+				# Store all the necessary variables into the session to login
+				session['id'] = userID
 				session['logged_in'] = True
 				session['username'] = firstName
 				session['email'] = email
 				session['customPicture'] = "FALSE"
 				session['confirmation'] = 0
 				session['admin'] = False
+
+				# If user checked membership payment, redirect to new_checkout for transaction process.
 				if form.payNow.data:
 					return redirect(url_for('new_checkout'))
+				# Else the user will be redirected to unconfirmed to be reminded about confirming email address.
 				else:
 					return redirect(url_for('unconfirmed'))
+		# Flash the user with message indicating invalid UPR institutional email.
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
 	return render_template('register.html', form=form)
@@ -569,7 +575,9 @@ def user_profile(id):
 	if user == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
+	# Check if the profile page belongs to the admin
 	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and priviledge='ADMIN'", [id], True)
+	# If it does, redirect to the page of the user with the same email account
 	if isAdminAccount:
 		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and priviledge!='ADMIN'", [isAdminAccount['email']], True)
 		if hasSameEmail:
