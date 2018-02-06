@@ -1,5 +1,5 @@
 from db import query_db
-from flask import redirect, url_for, session
+from flask import redirect, url_for, session, flash
 from functools import wraps
 
 # Check if user logged in

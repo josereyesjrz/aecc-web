@@ -1,5 +1,4 @@
 from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory, Markup
-
 from datetime import datetime
 from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
 from wtforms.fields.html5 import EmailField
@@ -7,7 +6,7 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
 # Cryptography
 import scrypt
-#Upload
+# Upload
 from os import path, remove, stat, environ, urandom
 import glob
 from werkzeug.utils import secure_filename
@@ -16,7 +15,6 @@ from flask_gravatar import Gravatar
 from flask_mail import Mail
 import emailToken
 # Transactions
-# import transaction
 from dotenv import load_dotenv
 import braintree
 # Forgot Password
@@ -49,12 +47,6 @@ TRANSACTION_SUCCESS_STATUSES = [
 	braintree.Transaction.Status.Settling,
 	braintree.Transaction.Status.SubmittedForSettlement
 ]
-
-braintree.Configuration.configure(braintree.Environment.Sandbox,
-				  merchant_id="ykqfttjmkjxqh34f",
-				  public_key="qznsjn6yymz2b35y",
-				  private_key="7920b35f630e2c714320dee79cbcd8dd")
-
 
 #Generate token
 @app.route("/client_token", methods=["GET"])
