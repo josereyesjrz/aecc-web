@@ -566,6 +566,8 @@ def user_profile(id):
 			return render_template('404.html')
 	# Check if the user is logged in and is their own profile page
 	if 'logged_in' in session and session['id'] == int(id):
+		if not session['admin'] and query_db("SELECT status FROM users WHERE id=? and status!='ACTIVE' and status!='SUSPENDED'", (id,), True):
+			flash(Markup('You have not paid your membership. <a href="'+url_for('new_checkout')+'">Click here to pay online.</a>'), 'warning')
 		# Check if the user's account is confirmed
 		if not session['confirmation']:
 			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="'+url_for('resend_confirmation')+'">Resend</a>'), 'warning')
