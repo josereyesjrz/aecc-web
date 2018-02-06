@@ -31,6 +31,17 @@ def insert(table, fields=(), values=()):
 	cur.close()
 	return id
 
+def update(table, fields=(), where="", values=()):
+	cur = get_db().cursor()
+	query = 'UPDATE %s SET %s WHERE %s' % (
+		table,
+		'=?, '.join(fields) + '=?',
+		where,
+	)
+	cur.execute(query, values)
+	get_db().commit()
+	cur.close()
+
 def query_db(query, args=(), one=False):
 	cur = get_db().execute(query, args)
 	rv = cur.fetchall()

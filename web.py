@@ -28,7 +28,7 @@ app.config.from_pyfile('config.py')
 mail = Mail(app)
 
 from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
-from db import get_db, close_connection, insert, query_db
+from db import get_db, close_connection, insert, update, query_db
 
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
@@ -85,11 +85,8 @@ def show_checkout(transaction_id):
 			'icon': 'success',
 			'message': 'Your test transaction has been successfully processed. See the Braintree API response and try again.'
 		}
-		cur = get_db().cursor()
-		cur.execute("UPDATE users SET status=? WHERE id=?",('ACTIVE', session['id']))
-		get_db().commit()
-		#Close connection
-		cur.close()
+		update("users", ("status",), "id=?", ("ACTIVE", session['id']))
+	
 	else:
 		result = {
 			'header': 'Transaction Failed',
@@ -365,13 +362,8 @@ def reset_password(token):
 			random_salt = urandom(64)
 			new_salt = random_salt.encode('hex')
 			new_password = scrypt.hash(str(password_submit_form.password.data), random_salt).encode('hex')
-			cur = get_db().cursor()
-			cur.execute("UPDATE users SET password=? salt=? WHERE id=? and priviledge != 'ADMIN'",(new_password, new_salt, verified_result))
-			# Commit to DB
-			get_db().commit()
-			#Close connection
-			cur.close()
-			#return "password updated successfully"
+			
+			update("users", ("password", "salt"), "id=? and priviledge != 'ADMIN'", (new_password, new_salt, verified_result))
 			flash('Password updated successfully', 'success')
 			return redirect(url_for('login'))
 		return render_template("reset_password.html", form=password_submit_form)
@@ -524,8 +516,8 @@ def edit_profile(id):
 		# Admin can bypass password verification or user must match their password
 		if session['id'] != int(id) or scrypt.hash(str(form.password.data), result['salt'].decode('hex')) == result['password'].decode('hex'):
 
-			studentFirstName = form.studentFirstName.data
-			studentLastName = form.studentLastName.data
+			studentFirstName = str(form.studentFirstName.data)
+			studentLastName = str(form.studentLastName.data)
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
 			if filename != "":
@@ -535,32 +527,27 @@ def edit_profile(id):
 					if path.exists(img):
 						remove(img)
 				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
-			cur = get_db().cursor()
 			if str(form.new_password.data) != "":
 				random_salt = urandom(64)
 				new_salt = random_salt.encode('hex')
 				new_password = scrypt.hash(str(form.new_password.data), random_salt).encode('hex')
-				#Execute
+				# Update the database to include the new set parameters by the user
 				if filename != "":
-					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, salt=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, new_password, new_salt, filename, id))
+					update("users", ("studentFirstName", "studentLastName", "password", "salt", "customPicture"), "id=?", (studentFirstName, studentLastName, new_password, new_salt, filename, id))
 				else:
-					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, password=?, salt=? WHERE id=?",(studentFirstName, studentLastName, new_password, new_salt, id))
+					update("users", ("studentFirstName", "studentLastName", "password", "salt"), "id=?", (studentFirstName, studentLastName, new_password, new_salt, id))
 			else:
 				if filename != "":
-					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=?, customPicture=? WHERE id=?",(studentFirstName, studentLastName, filename, id))
+					update("users", ("studentFirstName", "studentLastName", "customPicture"), "id=?", (studentFirstName, studentLastName, filename, id))
 				else:
-					cur.execute("UPDATE users SET studentFirstName=?, studentLastName=? WHERE id=?",(studentFirstName, studentLastName, id))				
+					update("users", ("studentFirstName", "studentLastName"), "id=?", (studentFirstName, studentLastName, id))
 			# If admin is editing the profile, only change the session variables for the user
 			if session['id'] == int(id):
-				if session['admin'] and form.adminEmail.data != "":
-					cur.execute("UPDATE users SET email=? WHERE id=?",(form.adminEmail.data, id))
+				if session['admin'] and str(form.adminEmail.data) != "":
+					update("users", ("email",), "id=?", (str(form.adminEmail.data).lower(), id))
 				session['username'] = studentFirstName
 				if filename != "":
 					session['customPicture'] = filename
-			# Commit to DB
-			get_db().commit()
-			#Close connection
-			cur.close()
 			flash('User profile modified', 'success')
 		else:
 			flash('Password is incorrect', 'danger')
@@ -570,26 +557,26 @@ def edit_profile(id):
 @app.route('/user/<string:id>')
 def user_profile(id):
 	# Get post by id
-	user = query_db("SELECT id,studentFirstName,studentLastName,email,biography,customPicture FROM users WHERE id = ?", [id], True)
+	user = query_db("SELECT id,studentFirstName,studentLastName,email,biography,customPicture FROM users WHERE id = ?", (id,), True)
 	# TODO: Query the courses taken by that user
 	if user == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# Check if the profile page belongs to the admin
-	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and priviledge='ADMIN'", [id], True)
+	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and priviledge='ADMIN'", (id,), True)
 	# If it does, redirect to the page of the user with the same email account
 	if isAdminAccount:
-		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and priviledge!='ADMIN'", [isAdminAccount['email']], True)
+		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and priviledge!='ADMIN'", (isAdminAccount['email'],), True)
 		if hasSameEmail:
 			return redirect(url_for('user_profile', id=hasSameEmail['id']))
 		else:
 			flash('User does not exist in our database', 'danger')
 			return render_template('404.html')
 	# Check if the user is logged in and is their own profile page
-	if 'logged_in' in session and session['id'] == id:
+	if 'logged_in' in session and session['id'] == int(id):
 		# Check if the user's account is confirmed
 		if not session['confirmation']:
-			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="/resend">Resend</a>'), 'warning')
+			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="'+url_for('resend_confirmation')+'">Resend</a>'), 'warning')
 		return render_template('user_profile.html', user=user)
 	return render_template('user_profile.html', user=user)
 
