@@ -105,3 +105,9 @@ create table events (
 	elocation text not null,
 	edescription text not null
 );
+
+drop table if exists concentration;
+create table concentration (
+	conid integer primary key autoincrement,
+	conname text not null
+);
