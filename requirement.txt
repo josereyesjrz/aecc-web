@@ -5,3 +5,4 @@ flask-gravatar>=0.5.0
 itsdangerous>=0.24
 flask-mail>=0.9.1
 scrypt>=0.8.0
+python-dotenv>=0.7.1
