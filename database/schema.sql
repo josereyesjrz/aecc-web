@@ -83,7 +83,18 @@ create table transactions (
 	uid integer,
 	tdate text not null,
 	token text not null unique,
+	membertype text not null,
 	foreign key (uid) references users(id)
+);
+
+create table manual_transactions (
+	tid integer primary key autoincrement,
+	uid integer,
+	aid, integer
+	tdate text not null,
+	membertype text not null,
+	foreign key (uid) references users(id)
+	foreign key (aid) references users(id)
 );
 
 drop table if exists events;
