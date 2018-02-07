@@ -81,7 +81,7 @@ def show_checkout(transaction_id):
 		if (query_db("SELECT * FROM transactions WHERE token=?", (transaction_id,), True) == None):
 			update("users", ("status",), "id=?", ("ACTIVE", session['id']))
 			memberType = "AECC" if transaction.amount == 5 else "ACM"
-			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id))
+			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id, memberType))
 	
 	else:
 		result = {
