@@ -77,7 +77,11 @@ def show_checkout(transaction_id):
 			'icon': 'success',
 			'message': 'Your test transaction has been successfully processed. See the Braintree API response and try again.'
 		}
-		update("users", ("status",), "id=?", ("ACTIVE", session['id']))
+		# TODO: Check date such that the database does not insert duplicate rows
+		if (query_db("SELECT * FROM transactions WHERE token=?", (transaction_id,), True) == None):
+			update("users", ("status",), "id=?", ("ACTIVE", session['id']))
+			memberType = "AECC" if transaction.amount == 5 else "ACM"
+			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id))
 	
 	else:
 		result = {
