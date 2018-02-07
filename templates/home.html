@@ -1,12 +1,66 @@
 {% extends 'layout.html' %}
 
+<style type="text/css">
+	.container-fluid {
+		padding-bottom: 200px;
+	}
+</style>
+
 {% block body %}
-  <div class="jumbotron text-center">
-    <h1>Welcome To FlaskApp</h1>
-    <p class="lead">This application is built on the Python Flask framework and is the focus for the "Python Flask From Scratch" YouTube series</p>
-    {% if session.logged_in == NULL %}
-      <a href="/register" class="btn btn-primary btn-lg">Register</a>
-      <a href="/login" class="btn btn-success btn-lg">Login</a>
-    {% endif %}
-  </div>
+	<!-- Aqui va un slider que se yo -->
+	<div class="container-fluid">
+		<div id="featured" class="carousel slide" data-ride="carousel">
+			<!-- Indicators -->
+			<ol class="carousel-indicators">
+				<li data-target="#featured" data-slide-to="0" class="active"></li>
+				<li data-target="#featured" data-slide-to="1"></li>
+				<li data-target="#featured" data-slide-to="2"></li>
+				<li data-target="#featured" data-slide-to="3"></li>
+			</ol>
+
+			<div class="carousel-inner">
+				<div class="item active">
+					<img src="http://focusonthespirit.com/emily_maher/images/1920x500.gif" alt="Event 1">
+				</div>
+				<div class="item">
+					<img src="http://focusonthespirit.com/emily_maher/images/1920x500.gif" alt="Event 2">
+				</div>
+				<div class="item">
+					<img src="http://focusonthespirit.com/emily_maher/images/1920x500.gif" alt="Event 3">
+				</div>
+				<div class="item">
+					<img src="http://focusonthespirit.com/emily_maher/images/1920x500.gif" alt="Event 4">
+				</div>
+			</div>
+
+			<!-- Left and right controls -->
+			<a class="left carousel-control" href="#featured" data-slide="prev">
+				<span class="glyphicon glyphicon-chevron-left"></span>
+				<span class="sr-only">Prev</span>
+			</a>
+
+			<a class="right carousel-control" href="#featured" data-slide="next">
+				<span class="glyphicon glyphicon-chevron-right"></span>
+				<span class="sr-only">Next</span>
+			</a>
+		</div>
+	</div>
+	<!-- Hacer el jumbotron smaller -->
+	<!-- montar grid -->
+	<div class="container-fluid">
+		<div class="row">
+			<div class="col-sm-6 col-lg-6 col-md-6 col-xs-6">
+				<div class="jumbotron text-center">
+			    <h1>Welcome To AECC</h1>
+			    <p class="lead"> Log In or Register if you haven't already! </p>
+			    {% if session.logged_in == NULL %}
+			      <a href="/register" class="btn btn-primary btn-lg">Register</a>
+			      <a href="/login" class="btn btn-success btn-lg">Login</a>
+			    {% endif %}
+			    
+			  </div>
+			</div>
+			<div class="col-sm-6 col-lg-6 col-md-6 col-xs-6"><!-- Poner calendario --></div>
+		</div>
+	</div>
 {% endblock %}
