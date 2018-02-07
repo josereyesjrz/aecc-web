@@ -13,12 +13,13 @@
 
     <form id="payment-form" method="post" action="/checkouts">
       <section>
-        <label for="amount">
-          <span class="input-label">Amount for Membership</span>
-          <div class="input-wrapper amount-wrapper">
-            <input id="amount" name="amount" type="tel" min="1" placeholder="Amount" value="5">
-          </div>
-        </label>
+        <span>Amount</span>
+        <div></div>
+        <select name="amount" id="amount">
+
+        <option value="5">AECC $5</option>
+        <option value="20">AECC + ACM $20</option>
+        </select>
 
         <div class="bt-drop-in-wrapper">
           <div id="bt-dropin"></div>
@@ -59,5 +60,5 @@
       });
     });
   });
-</script>
+</script> 
 {% endblock %}

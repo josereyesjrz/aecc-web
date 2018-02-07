@@ -434,10 +434,7 @@ def activateMembership(id):
 	else:
 		flash('User does not exist.', 'danger')
 		return redirect(url_for('adminPanel'))
-	cur = get_db().cursor()
-	cur.execute("UPDATE users SET status='ACTIVE' WHERE id=?",(id))
-	get_db().commit()
-	cur.close()
+	update("users", ("status",), "id=?", ('ACTIVE', id))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " is now a member!", "success")
 	return redirect(url_for('adminPanel'))
 
@@ -453,10 +450,7 @@ def suspendMembership(id, studentFirstName="", studentLastName=""):
 	else:
 		flash('User does not exist.', 'danger')
 		return redirect(url_for('adminPanel'))
-	cur = get_db().cursor()
-	cur.execute("UPDATE users SET status='SUSPENDED' WHERE id=?",(id))
-	get_db().commit()
-	cur.close()
+	update("users", ("status",), "id=?", ('SUSPENDED', id))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " has been suspended!", "danger")
 	return redirect(url_for('adminPanel'))
 
