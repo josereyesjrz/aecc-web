@@ -95,18 +95,27 @@ def show_checkout(transaction_id):
 @app.route('/checkouts', methods=['POST'])
 @is_logged_in
 def create_checkout():
-	result = braintree.Transaction.sale({
-		'amount': request.form['amount'],
-		'payment_method_nonce': request.form['payment_method_nonce'],
-		'options': {
-			"submit_for_settlement": True
-		}
-	})
+	try:
+		amount = int(request.form['amount'])
+		if amount == 5 or amount == 20:
+			result = braintree.Transaction.sale({
+				'amount': request.form['amount'],
+				'payment_method_nonce': request.form['payment_method_nonce'],
+				'options': {
+					"submit_for_settlement": True
+				}
+			})
 
-	if result.is_success or result.transaction:
-		return redirect(url_for('show_checkout',transaction_id=result.transaction.id))
-	else:
-		for x in result.errors.deep_errors: flash('Error: %s: %s' % (x.code, x.message))
+			if result.is_success or result.transaction:
+				return redirect(url_for('show_checkout',transaction_id=result.transaction.id))
+			else:
+				for x in result.errors.deep_errors: flash('Error: %s: %s' % (x.code, x.message))
+				return redirect(url_for('new_checkout'))
+		else:
+			flash('Error: Incorrect membership payment amount.', 'danger')
+			return redirect(url_for('new_checkout'))
+	except:
+		flash('Error: Incorrect membership payment amount.', 'danger')
 		return redirect(url_for('new_checkout'))
 
 
