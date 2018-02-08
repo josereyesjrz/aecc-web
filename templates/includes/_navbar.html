@@ -1,6 +1,14 @@
 <style type="text/css">
-  .navbar, .navbar-default {
+  .navbar, .navbar-default, .navbar-nav {
     background-color: black;
+  }
+
+  .navbar-default .navbar-nav > li > a, .navbar-default .navbar-brand {
+    color: white;
+  }
+
+  .navbar-default .navbar-brand:hover, .navbar-default .navbar-nav > li > a:hover {
+    color: gray;
   }
 
 </style>
@@ -17,7 +25,7 @@
           <a class="navbar-brand" href="/"><p><img src="{{ url_for('static', filename='images/aecc-logo.jpg') }}" height="25" width="25"> AECC Website</p></a>
         </div>
         <div id="navbar" class="collapse navbar-collapse">
-          <ul class="nav navbar-nav">
+          <ul class="nav navbar-nav"">
             <li><a href="{{ url_for('index') }}">Home</a></li>
             <li><a href="{{ url_for('members') }}">Members</a></li>
             <li><a href="{{ url_for('about') }}">About</a></li>
@@ -25,7 +33,7 @@
 
           <ul class="nav navbar-nav navbar-right">
             {% if session.logged_in %}
-              <li><a href="/dashboard">
+              <li><a href="{{ url_for('user_profile', id=session.id) }}">
                 {% if session.customPicture == "FALSE" %}
                 <img src="{{ session.email | gravatar }}" height="25" width="25">
                 {% else %}

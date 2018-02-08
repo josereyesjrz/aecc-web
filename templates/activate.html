@@ -1,4 +1,14 @@
-<p>Bienvenido a la AECC! Por favor oprima el enlace de abajo para activatar su cuenta:</p>
-<p><a href="{{ confirm_url }}">{{ confirm_url }}</a></p>
-<br>
-<p>-La Directiva</p>
+{% extends 'layout.html' %}
+
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-sm-6 col-lg-6 col-md-6 col-xs-6">
+			<div class="jumbotron text-center">
+				<h1>Bienvenido a la AECC!</h1><br>
+				<p class="lead"> Por favor oprima el enlace de abajo para activatar su cuenta:</p>
+				<a href="{{ confirm_url }}" class="btn btn-success btn-lg">{{ confirm_url }}</a><br>
+				<h6> - La Directiva</h6>
+			</div>
+		</div>
+	</div>
+</div>
