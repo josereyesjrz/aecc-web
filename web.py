@@ -215,6 +215,10 @@ def register():
 			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
 				flash('Phone Number already taken.', 'danger')
 			else:
+				try:
+					print(str(request.form['majors']))
+				except:
+					print("That was it")
 				# Generate a random salt
 				random_salt = urandom(64)
 				# Encode the salt to store its hex value into the database

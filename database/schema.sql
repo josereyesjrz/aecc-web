@@ -90,10 +90,10 @@ drop table if exists manual_transactions;
 create table manual_transactions (
 	tid integer primary key autoincrement,
 	uid integer,
-	aid, integer
+	aid integer,
 	tdate text not null,
 	membertype text not null,
-	foreign key (uid) references users(id)
+	foreign key (uid) references users(id),
 	foreign key (aid) references users(id)
 );
 
