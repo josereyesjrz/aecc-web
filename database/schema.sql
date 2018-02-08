@@ -86,7 +86,7 @@ create table transactions (
 	membertype text not null,
 	foreign key (uid) references users(id)
 );
-
+drop table if exists manual_transactions;
 create table manual_transactions (
 	tid integer primary key autoincrement,
 	uid integer,
