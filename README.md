@@ -3,6 +3,10 @@ Development of the new AECC website. Project for software engineering class.
 
 # Usar python2.7
 
+# Para resetear la base de datos
+'sqlite3 database.db < schema.sql'
+en el archivo de database.
+
 Usar "pip install -r requirement.txt"
 `pip install Flask`
 
@@ -28,3 +32,4 @@ utiliza  este comando
 `sudo apt-get install libssl-dev`
 explicacion
 https://askubuntu.com/questions/647143/problems-installing-scrypt-0-7-1-on-ubuntu-into-a-virtual-environment
+
