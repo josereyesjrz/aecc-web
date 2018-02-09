@@ -7,29 +7,28 @@ Development of the new AECC website. Project for software engineering class.
 'sqlite3 database.db < schema.sql'
 en el archivo de database.
 
-Usar "pip install -r requirement.txt"
-`pip install Flask`
+# Requirements
+`braintree`
+`flask`
+`flask-wtf`
+`flask-gravatar`
+`itsdangerous`
+`flask-mail`
+`scrypt`
+`python-dotenv`
+Use `pip install -r requirement.txt` para instalarlos
 
-`pip install Flask-WTF`
-
-`pip install Flask-Gravatar`
-
-# Para encriptar passwords
-`pip install passlib`
-
-# Para email confirmation
-pip install itsdangerous
-pip install Flask-Mail
+`sqlite3`
 
 # Antes de correr el website
-$ export APP_MAIL_USERNAME='InsertEmailAddressHere'
-$ export APP_MAIL_PASSWORD='InsertEmailPasswordHere'
+`$ export APP_MAIL_USERNAME='InsertEmailAddressHere'`
+`$ export APP_MAIL_PASSWORD='InsertEmailPasswordHere'`
 
-#Si te sale un error como este(paso en ubuntu 17.10)  
+# Error al instalar scrypt
+Algo parecido a:
 `scrypt-1.1.6/lib/crypto/crypto_aesctr.c:38:25: fatal error: openssl/aes.h: Datei oder Verzeichnis nicht gefunden
 #include <openssl/aes.h>  `
-utiliza  este comando
+Installe libssl-dev:
 `sudo apt-get install libssl-dev`
-explicacion
-https://askubuntu.com/questions/647143/problems-installing-scrypt-0-7-1-on-ubuntu-into-a-virtual-environment
+[Explicación](https://askubuntu.com/questions/647143/problems-installing-scrypt-0-7-1-on-ubuntu-into-a-virtual-environment)
 
