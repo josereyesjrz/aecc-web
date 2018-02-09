@@ -45,22 +45,90 @@
 			</a>
 		</div>
 	</div>
-	<!-- Hacer el jumbotron smaller -->
 	<!-- montar grid -->
 	<div class="container-fluid">
 		<div class="row">
 			<div class="col-sm-6 col-lg-6 col-md-6 col-xs-6">
+				{% if session.logged_in == NULL %}
 				<div class="jumbotron text-center">
 			    <h1>Welcome To AECC</h1>
 			    <p class="lead"> Log In or Register if you haven't already! </p>
-			    {% if session.logged_in == NULL %}
 			      <a href="/register" class="btn btn-primary btn-lg">Register</a>
 			      <a href="/login" class="btn btn-success btn-lg">Login</a>
-			    {% endif %}
-			    
+				</div>
+			     {% else %}
+			     <div class="jumbotron text-center">
+			    <h1>Welcome To AECC</h1>
+			    <p class="lead"> Welcome, {{ session['username']}}! </p>
 			  </div>
-			</div>
-			<div class="col-sm-6 col-lg-6 col-md-6 col-xs-6"><!-- Poner calendario --></div>
+			    {% endif %}
 		</div>
+		<div class="col-sm-6 col-lg-6 col-md-6 col-xs-6">
+				<!-- Poner calendario -->
+				<h3>Calendario</h3>
+					<div class="table-responsive">
+						<table class="table">
+							<thead>
+								<tr>
+									<th>
+										Current Events
+									</th>
+									<th>
+										When?
+									</th>
+									<th>
+										Where?
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										...
+									</td>
+									<td>
+										...
+									</td>
+									<td>
+										...
+									</td>
+								</tr>
+							</tbody>
+						</table>
+						<table class="table">
+							<thead>
+								<tr>
+									<th>
+										Past Events
+									</th>
+									<th>
+										When?
+									</th>
+									<th>
+										Where?
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td>
+										...
+									</td>
+									<td>
+										...
+									</td>
+									<td>
+										...
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
 	</div>
+	<div class="row">
+		<h3 class="page-header">This what we do:</h3>
+		<div class="col-xs-4 col-sm-4 col-md-4 col-lg-4"></div>
+	</div>
+</div>
 {% endblock %}
