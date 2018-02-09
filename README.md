@@ -1,23 +1,38 @@
 # aecc-web
 Development of the new AECC website. Project for software engineering class.
 
-# Usar python2.7
-
 # Para resetear la base de datos
-'sqlite3 database.db < schema.sql'
+`cd database/`
+
+`sqlite3 database.db < schema.sql`
+
 en el archivo de database.
 
 # Requirements
-`braintree`
-`flask`
-`flask-wtf`
-`flask-gravatar`
-`itsdangerous`
-`flask-mail`
-`scrypt`
-`python-dotenv`
-Use `pip install -r requirement.txt` para instalarlos
 
+## Usar python2.7
+
+`braintree`
+
+`flask`
+
+`flask-wtf`
+
+`flask-gravatar`
+
+`itsdangerous`
+
+`flask-mail`
+
+`scrypt`
+
+`python-dotenv`
+
+
+Para instalarlos:
+`pip install -r requirement.txt`
+
+Tmabién necesita instalar:
 `sqlite3`
 
 # Antes de correr el website
