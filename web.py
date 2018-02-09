@@ -218,6 +218,11 @@ def register():
 			elif len(query_db("SELECT * FROM concentration WHERE conname = ?", [str(request.form['majors'])], True)) == 0:
 				flash('Invalid Major entered.', 'danger')
 			else:
+				# TODO input validation de majors
+				try:
+					print(str(request.form['majors']))
+				except:
+					print("That was it")
 				# Generate a random salt
 				random_salt = urandom(64)
 				# Encode the salt to store its hex value into the database
