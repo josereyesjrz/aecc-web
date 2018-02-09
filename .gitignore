@@ -2,3 +2,4 @@ database.db
 .DS_Store
 *.pyc
 static/uploads/
+static/js/ckeditor/samples/
