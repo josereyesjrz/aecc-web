@@ -6,6 +6,9 @@ create table users (
 	studentFirstName text not null,
 	studentLastName text not null,
 	phoneNumber char(10),
+	linkedin text unique,
+	gituser text unique,
+	facebook text unique,
 	password text not null,
 	salt text not null,
 	priviledge text not null default "MEMBER",
@@ -86,8 +89,9 @@ create table transactions (
 	membertype text not null,
 	foreign key (uid) references users(id)
 );
-drop table if exists manual_transactions;
-create table manual_transactions (
+
+drop table if exists manual_activations;
+create table manual_activations (
 	tid integer primary key autoincrement,
 	uid integer,
 	aid integer,
@@ -111,3 +115,10 @@ create table concentration (
 	conid integer primary key autoincrement,
 	conname text not null
 );
+
+insert into concentration (conname) values ("Computer Science");
+insert into concentration (conname) values ("Mathematics");
+insert into concentration (conname) values ("Pure Mathematics");
+insert into concentration (conname) values ("Discrete Mathematics");
+insert into concentration (conname) values ("Computational Mathematics");
+insert into concentration (conname) values ("Other");
