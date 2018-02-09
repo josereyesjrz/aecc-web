@@ -181,14 +181,14 @@ def about():
 
 # Register Form Class
 class RegisterForm(FlaskForm):
-	# Prevent symbols in username
+	# Accept only digits for Student Number
 	studentID = StringField('Student Number', [validators.Regexp("\d{9}",message = "Enter a valid Student Number"),validators.DataRequired(), validators.Length(min=9, max=9)])
 
 	email = EmailField('Email', [validators.DataRequired(), validators.Length(min=10, max=35), validators.Email()])
 	studentFirstName = StringField('First Name', [validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	studentLastName = StringField('Last Name', [validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	phoneNumber = StringField('Phone Number', [validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
-	# Add validators: At least 1 number, at least 1 uppercase
+	# TODO Add validators: At least 1 number, at least 1 uppercase
 	password = PasswordField('Password', [
 		validators.DataRequired(), validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
 		validators.EqualTo('confirm', message='Passwords do not match')
@@ -214,11 +214,10 @@ def register():
 				flash('Email address already taken.', 'danger')
 			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
 				flash('Phone Number already taken.', 'danger')
+			# Valid major check
+			elif len(query_db("SELECT * FROM concentration WHERE conname = ?", [str(request.form['majors'])], True)) == 0:
+				flash('Invalid Major entered.', 'danger')
 			else:
-				try:
-					print(str(request.form['majors']))
-				except:
-					print("That was it")
 				# Generate a random salt
 				random_salt = urandom(64)
 				# Encode the salt to store its hex value into the database
@@ -265,7 +264,9 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 @anonymous_user_required
 def login():
+	error = ""
 	if request.method == 'POST':
+		error = "Incorrect username or password."
 		logging_with_email = False
 		validCredentials = False
 		# Get Form Fields
@@ -278,7 +279,6 @@ def login():
 			validCredentials = True
 		if validCredentials:
 			password_candidate = str(request.form['password'])
-
 			# Get user by username
 			result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
@@ -288,6 +288,7 @@ def login():
 				# Compare Passwords
 				if scrypt.hash(password_candidate, uni_salt) == password:
 					# Passed
+					error = ""
 					session['logged_in'] = True
 					session['username'] = result['studentFirstName']
 					session['id'] = result['id']
@@ -300,18 +301,8 @@ def login():
 					if session['admin']:
 						return redirect(url_for('adminPanel'))
 					return redirect(url_for('user_profile', id=session['id']))
-				else:
-					flash("Invalid username or password.", 'danger')
-					#error = 'Username and/or Password is incorrect'
-					#return render_template('login.html', error=error)
-			else:
-				flash("Invalid username or password.", 'danger')
-				#error = 'Username and/or Password is incorrect'
-				#return render_template('login.html', error=error)
-		else:
-			flash("Invalid username or password.", 'danger')
 
-	return render_template('login.html')
+	return render_template('login.html', error=error)
 
 # ==== Forgot Password ====
 # https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
@@ -340,6 +331,7 @@ def get_token(id, expiration=1800):
 		return s.dumps({'user': id}).decode('utf-8')
 
 def verify_token(token):
+	# Loads the json data from the token passed and extracts the id of the user
 	s = Serializer(app.config['SECRET_KEY'])
 	try:
 		data = s.loads(token)
