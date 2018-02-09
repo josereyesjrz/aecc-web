@@ -3,23 +3,39 @@
 {% block body %}
   <h1>About Us</h1>
   <!-- Poner mision y vision -->
-  {% for member in directiva %}
-  	<div style="text-align:center">
-  	{% if member['customPicture'] == "FALSE" %}
-  		<img src="{{ url_for('static', filename='images/icon-default.jpg') }}" height="200" width="200">
-	{% else %}
-		<img src="{{ url_for('static', filename='uploads/'+member['customPicture']) }}" height="200" width="200">
+  <div class="container-fluid">
+        <div class="row" id="mision">
+                <h3>What we do</h3>
+                <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+                        <div class="well well-lg">Mision</div>
+                </div>
+        </div>
+        <div class="row" id="vision" style="position: relative; left: 50em;">
+                <h3>Why we do it</h3>
+                <div class="col-xs-6 col-sm-6 col-md-6 col-lg-6">
+                        <div class="well well-lg">Vision</div>
+                </div>
+        </div>
+        <div class="row">
+		  {% for member in directiva %}
+		   <div class="col-xs-4 col-sm-4 col-md-4 col-lg-4" style="text-align:center">
+		  	{% if member['customPicture'] == "FALSE" %}
+		  		<img src="{{ url_for('static', filename='images/icon-default.jpg') }}" height="200" width="200">
+			{% else %}
+				<img src="{{ url_for('static', filename='uploads/'+member['customPicture']) }}" height="200" width="200">
+			{% endif %}
+			<p><strong>{{ member['studentFirstName'] + " " + member['studentLastName'] }}</strong></p>
+			{% if member['studentID'] == "vicepresidente" %}
+			<p>Vice Presidente</p>
+			{% elif member['studentID'] == "pragent" %}
+			<p>Public Relations Agent</p>
+			{% elif "boardmember" in member['studentID'] %}
+			<p>Board Member</p>
+			{% else %}
+			<p>{{member['studentID'].capitalize()}}</p>
 	{% endif %}
-	<p><strong>{{ member['studentFirstName'] + " " + member['studentLastName'] }}</strong></p>
-	{% if member['studentID'] == "vicepresidente" %}
-	<p>Vice Presidente</p>
-	{% elif member['studentID'] == "pragent" %}
-	<p>Public Relations Agent</p>
-	{% elif "boardmember" in member['studentID'] %}
-	<p>Board Member</p>
-	{% else %}
-	<p>{{member['studentID'].capitalize()}}</p>
 	</div>
-	{% endif %}
   {% endfor %}
+  </div>
+</div>
 {% endblock %}
