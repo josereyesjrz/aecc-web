@@ -1,9 +1,8 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
-from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators, SelectField
+from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
 from wtforms.fields.html5 import EmailField
 from db import query_db
-
 
 # Register Form Class
 class RegisterForm(FlaskForm):

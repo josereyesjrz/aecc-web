@@ -472,7 +472,6 @@ def edit_profile(id):
 		if session['id'] != int(id) or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
-			course_ids = request.form.getlist("course_ids")
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
 			fieldsToUpdate = ["studentFirstName", "studentLastName", "biography"]
@@ -496,15 +495,22 @@ def edit_profile(id):
 			fieldValues.append(id)
 			# Update the database to include the new set parameters by the user
 			update("users", fieldsToUpdate, "id=?", fieldValues)
-			# Insert and delete courses taken by the user
-			for cid in userCourseIDs:
-				# User removed a class
-				if cid not in course_ids:
-					delete("courses_taken", "uid=? and cid=?", (id, cid))
-			for cid in course_ids:
-				# User added a class
-				if cid not in userCourseIDs:
-					insert("courses_taken", ("uid", "cid"), (id, cid))
+			if (session['id'] != int(id) and session['admin']) or (session['id'] == int(id) and not session['admin']):
+				# Grab all the checkboxes that were checked
+				course_ids = request.form.getlist("course_ids")
+				# Secure against code injecting checkboxes
+				allCourseIDs = [u'{}'.format(course['cid']) for course in courses]
+				# Intersect all ids in database to find the matching with the checkboxes
+				course_ids = list(set(course_ids).intersection(set(allCourseIDs)))
+				# Insert and delete courses taken by the user
+				for cid in userCourseIDs:
+					# User removed a class
+					if cid not in course_ids:
+						delete("courses_taken", "uid=? and cid=?", (id, cid))
+				for cid in course_ids:
+					# User added a class
+					if cid not in userCourseIDs:
+						insert("courses_taken", ("uid", "cid"), (id, cid))
 
 			# If admin is editing the profile, only change the session variables for the user
 			if session['id'] == int(id):
