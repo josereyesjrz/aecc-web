@@ -456,9 +456,12 @@ def edit_profile(id):
 		return render_template('404.html')
 	# If admin, get different form with admin email
 	if session['id'] == int(id) and session['admin']:
+		courses = []
 		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
 	# Else the user has the same id or the admin is in another users info
 	else:
+		# TODO: Pre-fill values of courses already taken by the user
+		courses = query_db("SELECT ccode, ccname FROM courses")
 		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Extracts password and salt to validate
@@ -502,7 +505,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, id=int(id))
+	return render_template('edit_profile.html', form=form, courses=courses, id=int(id))
 
 @app.route('/user/<string:id>')
 def user_profile(id):

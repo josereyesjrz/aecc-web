@@ -48,7 +48,6 @@ create table courses (
 	cid integer primary key autoincrement,
 	ccode text not null,
 	ccname text not null unique
-	
 );
 
 -- these queries add the CCOM and MATE courses into the courses table

@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
-from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
+from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators, SelectField
 from wtforms.fields.html5 import EmailField
 from db import query_db
 
@@ -31,7 +31,7 @@ class AdminForm(FlaskForm):
 	# Add regular expression to check if endswith('@upr.edu')
 	adminEmail = EmailField('Administrative Email', [validators.Length(min=10, max=35), validators.Email()])
 	password = PasswordField('Current Password', [
-		validators.DataRequired()
+		validators.DataRequired(message='Enter your password to make any changes.')
 	])
 	new_password = PasswordField('New Password', [
 		validators.EqualTo('confirm', message='Passwords do not match')
@@ -44,7 +44,7 @@ class ProfileForm(FlaskForm):
 	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
 	password = PasswordField('Current Password', [
-		validators.DataRequired()
+		validators.DataRequired(message='Enter your password to make any changes.')
 	])
 	new_password = PasswordField('New Password', [
 		validators.EqualTo('confirm', message='Passwords do not match')

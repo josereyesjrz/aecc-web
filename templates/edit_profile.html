@@ -27,11 +27,20 @@
     <div class="form-group">
       {{render_field(form.confirm, class_="form-control")}}
     </div>
-    <div>
-      {% if (session.id == id and not session.admin) or (session.id != id and session.admin) %}
-        {{render_field(form.biography, class_="form-control", id="editor1")}}
-      {% endif %}
+    {% if (session.id == id and not session.admin) or (session.id != id and session.admin) %}
+      <strong>Courses Taken</strong>
+      <div>
+      {% for course in courses %}
+          <tr>
+              <td><input type=checkbox name=do_delete value=""></td>
+              <td>{{ course['ccname'] }} ({{ course['ccode'] }})</td>
+          </tr>
+      {% endfor %}
     </div>
+    <div>
+      {{render_field(form.biography, class_="form-control", id="editor1")}}
+    </div>
+    {% endif %}
     <div>
     <input type="submit" class="btn btn-primary" value="Submit">
     </div>
