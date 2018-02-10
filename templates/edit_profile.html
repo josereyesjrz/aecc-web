@@ -29,7 +29,29 @@
       {{render_field(form.confirm, class_="form-control")}}
     </div>
     <div>
+      <textarea name="editor1" id="editor1" rows="10" cols="80">
+                This is my textarea to be replaced with CKEditor.
+            </textarea>
+    </div>
+    <div>
     <input type="submit" class="btn btn-primary" value="Submit">
     </div>
   </form>
 {% endblock %}
+
+    {% block footer %}
+    <script src="{{url_for('static', filename='js/jquery-3.2.1.min.js')}}"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <footer>
+                <div class="row" style="text-align:center">
+                    <div class="col-lg-12">
+                        <p>Copyright © AECC-UPRRP 2018
+                            <br>Using The Modern Business template by Start Bootstrap</p>
+                    </div>
+                </div>
+    </footer>
+     <script src="{{url_for('static', filename='js/ckeditor/ckeditor.js')}}"></script>   
+     <script type="text/javascript">
+      CKEDITOR.replace('editor1')
+     </script>
+    {% endblock %}
