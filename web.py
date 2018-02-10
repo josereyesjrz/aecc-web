@@ -73,8 +73,8 @@ def show_checkout(transaction_id):
 		# Check to see if transaction was already in the database to avoid the user from
 		# attempting to gain membership again without paying.
 		if (query_db("SELECT * FROM transactions WHERE token=?", (transaction_id,), True) == None):
-			# Change the user status to ACTIVE to become a member.
-			update("users", ("status",), "id=?", ("ACTIVE", session['id']))
+			# Change the user status to MEMBER to become an official member.
+			update("users", ("status",), "id=?", ("MEMBER", session['id']))
 			memberType = "ACM" if transaction.amount == 20 else "AECC"
 			# Insert the newly processed transaction and store the memberType according
 			# to the amount paid by the user. 20 for ACM, 5 for AECC
@@ -168,7 +168,7 @@ def page_not_found(e):
 @app.route('/members')
 def members():
 	# Extracts active members from db
-	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'ACTIVE'")
+	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'MEMBER'")
 	return render_template('members.html', results=results)
 
 # Members
@@ -247,26 +247,31 @@ def register():
 def login():
 	error = ""
 	if request.method == 'POST':
+		# Default error when visitor attempts login with invalid credentials.
 		error = "Incorrect username or password."
 		logging_with_email = False
 		validCredentials = False
+
 		# Get Form Fields
 		username = str(request.form['username']).lower()
+		# User is login with their email address
 		if username.endswith("@upr.edu"):
 			if len(username) >= 10 and len(username) <= 35:
 				logging_with_email = True
 				validCredentials = True
+		# Otherwise user wants to login with their Student Number or with an Administrative account.
 		elif username.isdigit() or username in directivaMemberList:
 			validCredentials = True
+		# If username is in the correct, now attempt to find the user in the database and compare passwords.
 		if validCredentials:
 			password_candidate = str(request.form['password'])
-			# Get user by username. Admins can only login with their board member title. Regular users can login with email or with student ID number
+			# Get user by username. Admins can only login with their board member title. Regular users can login with email or with student ID number.
 			result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
-				# Get stored hash
+				# Decode retrieved salt and hashed password
 				uni_salt = result['salt'].decode('hex')
 				password = result['password'].decode('hex')
-				# Compare Passwords
+				# Compare passwords by combining the (entered password + salt) with the hashed password.
 				if scrypt.hash(password_candidate, uni_salt) == password:
 					# Passed with matching password
 					error = ""
@@ -395,27 +400,27 @@ def logout():
 @is_logged_in
 @is_admin
 def adminPanel():
-	# Extracts users who are not active nor admins
-	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'ACTIVE' and priviledge != 'ADMIN'")
+	# Extracts users who are not members nor admins
+	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'MEMBER' and priviledge != 'ADMIN'")
 	return render_template('admin.html', result=anythingButMembers)
 
-@app.route('/activate/<string:id>')
+@app.route('/activate/<string:id>/<string:memberType>')
 @is_logged_in
 @is_admin
-def activateMembership(id):
+def activateMembership(id, memberType):
 	# Extracts user membership status
 	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ? and priviledge !='ADMIN'", [id], True)
 	if result:
-		if result['status'] == "ACTIVE":
+		if result['status'] == "MEMBER":
 			flash(result['studentFirstName'] + " " + result['studentLastName'] + " is already an active member.", 'warning')
 			return redirect(url_for('adminPanel'))
 	else:
 		flash('User does not exist.', 'danger')
 		return redirect(url_for('adminPanel'))
-	# Sets membership status to ACTIVE
-	update("users", ("status",), "id=?", ('ACTIVE', id))
-	# TODO: Inserts activation info into manual activations table. Membertype temporarily AECC
-	insert("manual_activations", ("uid", "aid", "tdate", "membertype"), (id, session["id"], datetime.now(), "AECC"))
+	# Sets user status to MEMBER
+	update("users", ("status",), "id=?", ('MEMBER', id))
+	# Inserts activation info into manual activations table. Membertype temporarily according to the clicked activate button.
+	insert("manual_activations", ("uid", "aid", "tdate", "membertype"), (id, session["id"], datetime.now(), memberType))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " is now a member!", "success")
 	return redirect(url_for('adminPanel'))
 
@@ -428,14 +433,14 @@ def suspendMembership(id, studentFirstName="", studentLastName=""):
 	if result:
 		if result['status'] == "SUSPENDED":
 			flash(result['studentFirstName'] + " " + result['studentLastName'] + " is already suspended.", 'warning')
-			return redirect(url_for('adminPanel'))
+			return redirect(url_for('members'))
 	else:
 		flash('User does not exist.', 'danger')
-		return redirect(url_for('adminPanel'))
+		return redirect(url_for('members'))
 	# Sets membership status to suspended
 	update("users", ("status",), "id=?", ('SUSPENDED', id))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " has been suspended!", "danger")
-	return redirect(url_for('adminPanel'))
+	return redirect(url_for('members'))
 
 # === PROFILE === #
 
@@ -521,8 +526,8 @@ def user_profile(id):
 			return render_template('404.html')
 	# Check if the user is logged in and is their own profile page
 	if 'logged_in' in session and session['id'] == int(id):
-		# Checks if user is not admin or not active or suspended
-		if not session['admin'] and query_db("SELECT status FROM users WHERE id=? and status!='ACTIVE' and status!='SUSPENDED'", (id,), True):
+		# Checks if user is not admin nor a member nor suspended
+		if not session['admin'] and query_db("SELECT status FROM users WHERE id=? and status!='MEMBER' and status!='SUSPENDED'", (id,), True):
 			flash(Markup('You have not paid your membership. <a href="'+url_for('new_checkout')+'">Click here to pay online.</a>'), 'warning')
 		# Check if the user's account is confirmed
 		if not session['confirmation']:

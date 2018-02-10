@@ -10,7 +10,8 @@
 		<img src="{{ url_for('static', filename='uploads/'+pending['customPicture']) }}" height="25" width="25">
 	{% endif %}
 	<strong>{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</strong> 
-	: [{{ pending['status'] }}] <a href="{{ url_for('activateMembership', id=pending['id']) }}">(Activate)</a>
+	: [{{ pending['status'] }}] <a href="{{ url_for('activateMembership', id=pending['id'], memberType='AECC') }}">(Activate AECC)</a>
+	<a href="{{ url_for('activateMembership', id=pending['id'], memberType='ACM') }}">(Activate ACM)</a>
 	</div>
   {% endfor %}
 {% endblock %}

@@ -17,7 +17,7 @@ create table users (
 	facebook text unique,
 	password text not null,
 	salt text not null,
-	priviledge text not null default "MEMBER",
+	priviledge text not null default "USER",
 	status text not null default "PENDING",
 	confirmation boolean not null default 0,
 	confirmed_on text default null,
@@ -37,7 +37,7 @@ insert into users (email, studentID, studentFirstName, studentLastName, password
 
 -- TEST USERS
 insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("victor.morales12@upr.edu", "801144540", "Víctor", "Morales", "9394016059", "0f23ce5902d8c8d5717f87b3d17069eb828c18e051a7379935c06e048ae7fb79381cc0c48dfbf00a3b8848b393bfb709a2389767ce66223860fa67a53f1c936d", "1a8b09ce7664d7bbfd191a95b97fd6c2861febedfa5d6c4f30bd49e0e7e1c06e2870be3ee642c6047f291a7177f6ba07b223029d1183e6cbd9efc355cad1445b", "SUSPENDED", 1, datetime('now'), datetime('now'));
-insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("eddie.cabrera@upr.edu", "801130844", "Eddie", "Cabrera", "7877877878", "2821700585e471a9f20de0ce72905135fc1ece59e0cab493a6aeac3f2090512e75f8673252044288fe7f988d1add678cc9e493f0a867fed65ee208cf647cfd25", "953baf7d7b0e8330259e276e89b72b5e184a046bd875ca740ef6017f52a7e8c9c63b05518a295abd0b0034d04daef0a8e5afa99ea6697178f74f4d965464cc36", "ACTIVE", 1, datetime('now'), datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("eddie.cabrera@upr.edu", "801130844", "Eddie", "Cabrera", "7877877878", "2821700585e471a9f20de0ce72905135fc1ece59e0cab493a6aeac3f2090512e75f8673252044288fe7f988d1add678cc9e493f0a867fed65ee208cf647cfd25", "953baf7d7b0e8330259e276e89b72b5e184a046bd875ca740ef6017f52a7e8c9c63b05518a295abd0b0034d04daef0a8e5afa99ea6697178f74f4d965464cc36", "MEMBER", 1, datetime('now'), datetime('now'));
 insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("john.wilson@upr.edu", "801000000", "John", "Wilson", "7870000000", "4e493036f87e8247de82cf89aafbb9536c07ffd72326e154675a20d1368ca7059ddde9a960deea0a1780c4e6234f3bbabbeda8a5bf5322e6e58354f1c9f1c51c", "3b9c1f0d0aa4280478532e953e702d8dcb92a745276b70fc71e6263b52c80bc0fd38285aa57617556d886eea5902c93a920d6019a047b41798c25017dcdffc9d", "PENDING", 1, datetime('now'), datetime('now'));
 
 -- this table contains the codification
