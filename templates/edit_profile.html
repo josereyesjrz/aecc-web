@@ -32,7 +32,11 @@
       <div>
       {% for course in courses %}
           <tr>
-              <td><input type=checkbox name=do_delete value=""></td>
+              {% if course['cid'] in userCourseIDs %}
+              <td><input type=checkbox name=course_ids value="{{ course['cid'] }}" checked></td>
+              {% else %}
+              <td><input type=checkbox name=course_ids value="{{ course['cid'] }}" unchecked></td>
+              {% endif %}
               <td>{{ course['ccname'] }} ({{ course['ccode'] }})</td>
           </tr>
       {% endfor %}

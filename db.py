@@ -36,6 +36,16 @@ def update(table, fields=(), where="", values=()):
 	query = 'UPDATE %s SET %s WHERE %s' % (
 		table,
 		'=?, '.join(fields) + '=?',
+		where
+	)
+	cur.execute(query, values)
+	get_db().commit()
+	cur.close()
+
+def delete(table, where="", values=()):
+	cur = get_db().cursor()
+	query = 'DELETE FROM %s WHERE %s' % (
+		table,
 		where,
 	)
 	cur.execute(query, values)

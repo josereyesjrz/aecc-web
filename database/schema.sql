@@ -95,7 +95,7 @@ insert into courses (ccode, ccname) values ("MATE4080", "Applied Modern Algebra"
 insert into courses (ccode, ccname) values ("MATE4081", "Modern Algebra");
 insert into courses (ccode, ccname) values ("MATE5001", "Probability");
 
-drop table courses_taken;
+drop table if exists courses_taken;
 create table courses_taken (
 	uid integer not null,
 	cid integer not null,

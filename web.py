@@ -22,7 +22,7 @@ app.config.from_pyfile('config.py')
 mail = Mail(app)
 
 from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
-from db import get_db, close_connection, insert, update, query_db
+from db import get_db, close_connection, insert, update, delete, query_db
 from forms import RegisterForm, AdminForm, ProfileForm, ResetPassword, ResetPasswordSubmit
 
 dotenv_path = 'mycred.env'
@@ -461,7 +461,9 @@ def edit_profile(id):
 	# Else the user has the same id or the admin is in another users info
 	else:
 		# TODO: Pre-fill values of courses already taken by the user
-		courses = query_db("SELECT ccode, ccname FROM courses")
+		userCourseIDs = query_db("SELECT cid FROM courses_taken where uid=?", [id])
+		userCourseIDs = [ucID['cid'] for ucID in userCourseIDs]
+		courses = query_db("SELECT * FROM courses")
 		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Extracts password and salt to validate
@@ -470,6 +472,7 @@ def edit_profile(id):
 		if session['id'] != int(id) or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
+			course_ids = request.form.getlist("course_ids")
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
 			fieldsToUpdate = ["studentFirstName", "studentLastName", "biography"]
@@ -493,6 +496,16 @@ def edit_profile(id):
 			fieldValues.append(id)
 			# Update the database to include the new set parameters by the user
 			update("users", fieldsToUpdate, "id=?", fieldValues)
+			# Insert and delete courses taken by the user
+			for cid in userCourseIDs:
+				# User removed a class
+				if cid not in course_ids:
+					delete("courses_taken", "uid=? and cid=?", (id, cid))
+			for cid in course_ids:
+				# User added a class
+				if cid not in userCourseIDs:
+					insert("courses_taken", ("uid", "cid"), (id, cid))
+
 			# If admin is editing the profile, only change the session variables for the user
 			if session['id'] == int(id):
 				if session['admin'] and str(form.adminEmail.data) != "":
@@ -505,7 +518,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, courses=courses, id=int(id))
+	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, id=int(id))
 
 @app.route('/user/<string:id>')
 def user_profile(id):
