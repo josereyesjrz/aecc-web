@@ -189,14 +189,14 @@ def register():
 			studentID = str(form.studentID.data)
 			phoneNumber = str(form.phoneNumber.data)
 			# Check that student number, email and phone number are unique
-			if len(query_db("SELECT id FROM users WHERE studentID = ?", [studentID])):
+			if query_db("SELECT id FROM users WHERE studentID = ?", [studentID]) == None:
 				flash('Student Number already taken.', 'danger')
-			elif len(query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email])):
+			elif query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email]) == None:
 				flash('Email address already taken.', 'danger')
-			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
+			elif query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber]) == None:
 				flash('Phone Number already taken.', 'danger')
 			# Valid major check
-			elif len(query_db("SELECT * FROM majors WHERE mname = ?", [str(request.form['majors'])], True)) == 0:
+			elif query_db("SELECT * FROM majors WHERE mname = ?", [str(request.form['majors'])], True) == None:
 				flash('Invalid Major entered.', 'danger')
 			else:
 				# Generate a random salt
@@ -204,10 +204,10 @@ def register():
 				# Encode the salt to store its hex value into the database
 				salt = random_salt.encode('hex')
 				# Generate the hash using the password and salt
-				password = scrypt.hash(str(form.password.data), random_salt).encode('hex')
+				password = scrypt.hash(form.password.data.encode('utf-8'), random_salt).encode('hex')
 				# Store the values into variables to avoid repetition
-				firstName = str(form.studentFirstName.data)
-				lastName = str(form.studentLastName.data)
+				firstName = form.studentFirstName.data
+				lastName = form.studentLastName.data
 				
 				# Insert the user into the database with all corresponding fields and return its table row id
 				userID = insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
@@ -264,7 +264,7 @@ def login():
 			validCredentials = True
 		# If username is in the correct, now attempt to find the user in the database and compare passwords.
 		if validCredentials:
-			password_candidate = str(request.form['password'])
+			password_candidate = request.form['password'].encode('utf-8')
 			# Get user by username. Admins can only login with their board member title. Regular users can login with email or with student ID number.
 			result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
@@ -336,7 +336,7 @@ def reset_password(token):
 		if password_submit_form.validate_on_submit():
 			random_salt = urandom(64)
 			new_salt = random_salt.encode('hex')
-			new_password = scrypt.hash(str(password_submit_form.password.data), random_salt).encode('hex')
+			new_password = scrypt.hash(password_submit_form.password.data.encode('utf-8'), random_salt).encode('hex')
 			
 			# Resets password where account is not admin
 			update("users", ("password", "salt"), "id=? and priviledge != 'ADMIN'", (new_password, new_salt, verified_result))
@@ -450,7 +450,7 @@ def suspendMembership(id, studentFirstName="", studentLastName=""):
 @is_allowed_edit
 def edit_profile(id):
 	# Gets student's name and email by id
-	result = query_db("SELECT studentFirstName,studentLastName,email FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,email,biography FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
@@ -459,19 +459,18 @@ def edit_profile(id):
 		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
 	# Else the user has the same id or the admin is in another users info
 	else:
-		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
+		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'])
 	if request.method == 'POST' and form.validate_on_submit():
 		# Extracts password and salt to validate
 		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
 		# Admin can bypass password verification or user must match their password
-		if session['id'] != int(id) or scrypt.hash(str(form.password.data), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
-
-			studentFirstName = str(form.studentFirstName.data)
-			studentLastName = str(form.studentLastName.data)
+		if session['id'] != int(id) or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
+			studentFirstName = form.studentFirstName.data
+			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
-			fieldsToUpdate = ["studentFirstName", "studentLastName"]
-			fieldValues = [studentFirstName, studentLastName]
+			fieldsToUpdate = ["studentFirstName", "studentLastName", "biography"]
+			fieldValues = [studentFirstName, studentLastName, form.biography.data]
 			if filename != "":
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
@@ -484,7 +483,7 @@ def edit_profile(id):
 			if str(form.new_password.data) != "":
 				random_salt = urandom(64)
 				new_salt = random_salt.encode('hex')
-				new_password = scrypt.hash(str(form.new_password.data), random_salt).encode('hex')
+				new_password = scrypt.hash(form.new_password.data.encode('utf-8'), random_salt).encode('hex')
 				fieldsToUpdate.extend(["password", "salt"])
 				fieldValues.extend([new_password, new_salt])
 

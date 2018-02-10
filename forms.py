@@ -50,6 +50,7 @@ class ProfileForm(FlaskForm):
 		validators.EqualTo('confirm', message='Passwords do not match')
 	])
 	confirm = PasswordField('Confirm New Password')
+	biography = TextAreaField('Biography', [validators.Length(max=5000)])
 
 # ==== Forgot Password ====
 # https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
