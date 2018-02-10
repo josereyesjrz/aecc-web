@@ -96,6 +96,15 @@ insert into courses (ccode, ccname) values ("MATE4080", "Applied Modern Algebra"
 insert into courses (ccode, ccname) values ("MATE4081", "Modern Algebra");
 insert into courses (ccode, ccname) values ("MATE5001", "Probability");
 
+drop table courses_taken;
+create table courses_taken (
+	uid integer not null,
+	cid integer not null,
+	foreign key (uid) references users(id) on delete cascade,
+	foreign key (cid) references courses(cid),
+	primary key(uid,cid)
+);
+
 -- this table contains the transactions made by users
 -- when they pay for their membership. it includes the
 -- user's id, the date of transaction, the transaction token,
