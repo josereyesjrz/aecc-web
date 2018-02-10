@@ -1,5 +1,20 @@
-<p>Alguien ha pedido que su contraseña sea reiniciada:</p>
-<p>Si fue usted, oprima el enlace de abajo para cambiar su contraseña a una nueva</p>
-<p><a href="{{ confirm_url }}">{{ confirm_url }}</a></p>
-<br>
-<p>-La Directiva</p>
+{% extends 'layout.html' %}
+
+<!-- Edited by Anthony Rios -->
+
+{% block body %}
+<div class="container-fluid">
+	<div class="row">
+		<div class="col-sm-4 col-lg-4 col-md-4 col-xs-4"></div>
+		<div class="col-sm-4 col-lg-4 col-md-4 col-xs-4">
+			<div class="jumbotron text-center">
+				<h2>Alguien ha pedido que su contraseña sea reiniciada:</h2>
+				<p class="lead">Si fue usted, oprima el enlace de abajo para cambiar su contraseña a una nueva</p>
+				<a href="{{ confirm_url }}" class="btn btn-success btn-lg">Confirm</a>
+				<br>
+				<p>- La Directiva</p>
+			</div>
+		</div>
+	</div>
+</div>
+{% block body %}

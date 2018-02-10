@@ -1,9 +1,12 @@
 {% extends 'layout.html' %}
-
+<!-- Edited by Anthony Rios -->
 {% block body %}
   <h1>Admin Panel</h1>
+  <h3>Welcome, {{ session['username']}}.</h3>
+  <div class="container-fluid">
+  	<div class="row" id="pending">
   {% for pending in result %}
-  	<div>
+  	<div class="col-xs-3 col-sm-3 col-md-3 col-lg-3">
   	{% if pending['customPicture'] == "FALSE" %}
   		<img src="{{ pending['email'] | gravatar }}" height="25" width="25">
 	{% else %}
@@ -11,6 +14,7 @@
 	{% endif %}
 	<strong>{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</strong> 
 	: [{{ pending['status'] }}] <a href="{{ url_for('activateMembership', id=pending['id']) }}">(Activate)</a>
-	</div>
   {% endfor %}
+	  </div>
+	</div>
 {% endblock %}

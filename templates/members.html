@@ -1,18 +1,24 @@
 {% extends 'layout.html' %}
 
+<!-- Edited by Anthony Rios -->
+
 {% block body %}
   <h1>Members</h1>
-  {% for result in results %}
-  <ul>
-  {% if result['customPicture'] == "FALSE" %}
-  	<img src="{{ result['email'] | gravatar }}" height="25" width="25">
-	{% else %}
-	<img src="{{ url_for('static', filename='uploads/'+result['customPicture']) }}" height="25" width="25">
-	{% endif %}
-  	<a href="{{ url_for('user_profile', id=result['id']) }}"><strong>{{result['studentFirstName'] + " " + result['studentLastName']}}</strong></a>
-  {% if session.admin %}
-  <a href="{{ url_for('suspendMembership', id=result['id']) }}">(Suspend)</a>
-  {% endif %}
-  </ul>
-  {% endfor %}
+  <div class="container-fluid">
+    <div class="row" id="members">
+      {% for result in results %}
+      <ul class="list-group">
+      {% if result['customPicture'] == "FALSE" %}
+      	<img src="{{ result['email'] | gravatar }}" height="25" width="25">
+    	{% else %}
+    	<img src="{{ url_for('static', filename='uploads/'+result['customPicture']) }}" height="25" width="25">
+    	{% endif %}
+      	<a href="{{ url_for('user_profile', id=result['id']) }}"><strong>{{result['studentFirstName'] + " " + result['studentLastName']}}</strong></a>
+      {% if session.admin %}
+      <a href="{{ url_for('suspendMembership', id=result['id']) }}">(Suspend)</a>
+      {% endif %}
+      </ul>
+      {% endfor %}
+      </div>
+  </div>
 {% endblock %}
