@@ -1,9 +1,5 @@
-from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory, Markup
+from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, Markup
 from datetime import datetime
-from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
-from wtforms.fields.html5 import EmailField
-from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed, FileRequired
 # Cryptography
 import scrypt
 # Upload
@@ -27,6 +23,7 @@ mail = Mail(app)
 
 from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
 from db import get_db, close_connection, insert, update, query_db
+from forms import RegisterForm, AdminForm, ProfileForm, ResetPassword, ResetPasswordSubmit
 
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
@@ -181,24 +178,6 @@ def about():
 	directivaMembers = query_db("SELECT studentID,studentFirstName,studentLastName,customPicture FROM users WHERE priviledge = 'ADMIN'")
 	return render_template('about.html', directiva=directivaMembers)
 
-# Register Form Class
-class RegisterForm(FlaskForm):
-	# Accept only digits for Student Number
-	studentID = StringField('Student Number', [validators.Regexp("\d{9}",message = "Enter a valid Student Number"),validators.DataRequired(), validators.Length(min=9, max=9)])
-
-	email = EmailField('Email', [validators.DataRequired(), validators.Length(min=10, max=35), validators.Email()])
-	studentFirstName = StringField('First Name', [validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
-	studentLastName = StringField('Last Name', [validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
-	phoneNumber = StringField('Phone Number', [validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
-	# TODO Add validators: At least 1 number, at least 1 uppercase
-	password = PasswordField('Password', [
-		validators.DataRequired(), validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
-		validators.EqualTo('confirm', message='Passwords do not match')
-	])
-	confirm = PasswordField('Confirm Password')
-	# Check to redirect to transaction payment
-	payNow = BooleanField("Pay Membership now?")
-
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
 @anonymous_user_required
@@ -289,7 +268,7 @@ def login():
 				password = result['password'].decode('hex')
 				# Compare Passwords
 				if scrypt.hash(password_candidate, uni_salt) == password:
-					# Passed
+					# Passed with matching password
 					error = ""
 					session['logged_in'] = True
 					session['username'] = result['studentFirstName']
@@ -308,26 +287,6 @@ def login():
 
 # ==== Forgot Password ====
 # https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
-class ExistingUser(object):
-	def __init__(self, message="Email doesn't exists"):
-		self.message = message
-	def __call__(self, form, field):
-		# Checks if email is in database
-		if not query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (field.data,), True):
-			raise ValidationError(self.message)
-
-class ResetPassword(FlaskForm):
-	email = EmailField('Email', validators=[validators.Required(),
-		  validators.Email(),
-		  ExistingUser(message='Email address is not available')
-		 ])
-
-class ResetPasswordSubmit(FlaskForm):
-	# TODO Add password custom validator
-	# password = PasswordField('Password', validators=custom_validators['edit_password'])
-	password = PasswordField('Password', [validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
-		validators.EqualTo('confirm', message='Passwords do not match')])
-	confirm = PasswordField('Confirm Password')
 
 def get_token(id, expiration=1800):
 		s = Serializer(app.config['SECRET_KEY'], expiration)
@@ -480,32 +439,6 @@ def suspendMembership(id, studentFirstName="", studentLastName=""):
 
 # === PROFILE === #
 
-class AdminForm(FlaskForm):
-	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
-	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
-	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
-	# Add regular expression to check if endswith('@upr.edu')
-	adminEmail = EmailField('Administrative Email', [validators.Length(min=10, max=35), validators.Email()])
-	password = PasswordField('Current Password', [
-		validators.DataRequired()
-	])
-	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match')
-	])
-	confirm = PasswordField('Confirm Password')
-
-class ProfileForm(FlaskForm):
-	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
-	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
-	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
-	password = PasswordField('Current Password', [
-		validators.DataRequired()
-	])
-	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match')
-	])
-	confirm = PasswordField('Confirm Password')
-
 #Edit profile
 @app.route('/edit_profile/<string:id>', methods=['GET', 'POST'])
 @is_logged_in
@@ -525,14 +458,15 @@ def edit_profile(id):
 	if request.method == 'POST' and form.validate_on_submit():
 		# Extracts password and salt to validate
 		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
-		result['password'],result['salt'] = pass_salt['password'],pass_salt['salt']
 		# Admin can bypass password verification or user must match their password
-		if session['id'] != int(id) or scrypt.hash(str(form.password.data), result['salt'].decode('hex')) == result['password'].decode('hex'):
+		if session['id'] != int(id) or scrypt.hash(str(form.password.data), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 
 			studentFirstName = str(form.studentFirstName.data)
 			studentLastName = str(form.studentLastName.data)
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
+			fieldsToUpdate = ["studentFirstName", "studentLastName"]
+			fieldValues = [studentFirstName, studentLastName]
 			if filename != "":
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
@@ -540,20 +474,18 @@ def edit_profile(id):
 					if path.exists(img):
 						remove(img)
 				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
+				fieldsToUpdate.append("customPicture")
+				fieldValues.append(filename)
 			if str(form.new_password.data) != "":
 				random_salt = urandom(64)
 				new_salt = random_salt.encode('hex')
 				new_password = scrypt.hash(str(form.new_password.data), random_salt).encode('hex')
-				# Update the database to include the new set parameters by the user
-				if filename != "":
-					update("users", ("studentFirstName", "studentLastName", "password", "salt", "customPicture"), "id=?", (studentFirstName, studentLastName, new_password, new_salt, filename, id))
-				else:
-					update("users", ("studentFirstName", "studentLastName", "password", "salt"), "id=?", (studentFirstName, studentLastName, new_password, new_salt, id))
-			else:
-				if filename != "":
-					update("users", ("studentFirstName", "studentLastName", "customPicture"), "id=?", (studentFirstName, studentLastName, filename, id))
-				else:
-					update("users", ("studentFirstName", "studentLastName"), "id=?", (studentFirstName, studentLastName, id))
+				fieldsToUpdate.extend(["password", "salt"])
+				fieldValues.extend([new_password, new_salt])
+
+			fieldValues.append(id)
+			# Update the database to include the new set parameters by the user
+			update("users", fieldsToUpdate, "id=?", fieldValues)
 			# If admin is editing the profile, only change the session variables for the user
 			if session['id'] == int(id):
 				if session['admin'] and str(form.adminEmail.data) != "":

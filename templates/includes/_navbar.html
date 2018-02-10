@@ -33,7 +33,12 @@
 
           <ul class="nav navbar-nav navbar-right">
             {% if session.logged_in %}
-              <li><a href="{{ url_for('user_profile', id=session.id) }}">
+              <li>
+                {% if session.admin %}
+                 <a href="{{ url_for('edit_profile', id=session.id) }}">
+                {% else %}
+                <a href="{{ url_for('user_profile', id=session.id) }}">
+                {% endif %}
                 {% if session.customPicture == "FALSE" %}
                 <img src="{{ session.email | gravatar }}" height="25" width="25">
                 {% else %}
