@@ -23,7 +23,7 @@ mail = Mail(app)
 
 from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
 from db import get_db, close_connection, insert, update, delete, query_db
-from forms import RegisterForm, AdminForm, ProfileForm, ResetPassword, ResetPasswordSubmit
+from forms import RegisterForm, AdminForm, ProfileForm, EventForm, ResetPassword, ResetPasswordSubmit
 
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
@@ -79,6 +79,7 @@ def show_checkout(transaction_id):
 			# Insert the newly processed transaction and store the memberType according
 			# to the amount paid by the user. 20 for ACM, 5 for AECC
 			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id, memberType))
+			
 	# Something went wrong when processing the transaction.
 	else:
 		result = {
@@ -442,10 +443,55 @@ def suspendMembership(id, studentFirstName="", studentLastName=""):
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " has been suspended!", "danger")
 	return redirect(url_for('members'))
 
+# === EVENTS === #
+
+@app.route('/create-event',  methods=['GET', 'POST'])
+@is_logged_in
+@is_admin
+def create_event():
+	form = EventForm(request.form)
+	if request.method == 'POST' and form.validate_on_submit():
+		eventID = insert("events", ("etitle", "edate", "elocation", "edescription"), (form.title.data, form.date.data, form.location.data, form.body.data))
+		return redirect(url_for('event', eid=eventID))
+	return render_template("create_event.html", form=form)
+
+@app.route('/edit-event/<string:eid>',  methods=['GET', 'POST'])
+@is_logged_in
+@is_admin
+def edit_event(eid):
+	eventInfo = query_db("SELECT * FROM events WHERE eid=?", [eid], True)
+	if eventInfo == None:
+		return render_template("404.html")
+	form = EventForm(title=eventInfo['etitle'], date=eventInfo['edate'], location=eventInfo['elocation'], body=eventInfo['edescription'])
+	if request.method == 'POST' and form.validate_on_submit():
+		update("events", ("etitle", "edate", "elocation", "edescription"), "eid=?", (form.title.data, form.date.data, form.location.data, form.body.data, eventInfo['eid']))
+		return redirect(url_for('event', eid=eid))
+	return render_template("edit_event.html", form=form)
+
+@app.route('/delete-event/<string:eid>')
+@is_logged_in
+@is_admin
+def delete_event(eid):
+	delete("events", "eid=?", [eid])
+	return redirect(url_for('events'))
+
+@app.route('/event/<string:eid>')
+def event(eid):
+	event = query_db("SELECT edate, etitle, elocation, edescription FROM events WHERE eid=?", [eid], True)
+	return render_template("event.html", event=event)
+
+@app.route('/events')
+def events():
+	eventList = query_db("SELECT * FROM events ORDER BY edate")
+	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
+	upcomingIDs = [eid['eid'] for eid in upcoming]
+	past = [event for event in eventList if event['eid'] not in upcomingIDs]
+	return render_template("events.html", upcoming=upcoming, past=past)
+
 # === PROFILE === #
 
 #Edit profile
-@app.route('/edit_profile/<string:id>', methods=['GET', 'POST'])
+@app.route('/edit_profile/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
 @is_allowed_edit
 def edit_profile(id):
@@ -455,7 +501,7 @@ def edit_profile(id):
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# If admin, get different form with admin email
-	if session['id'] == int(id) and session['admin']:
+	if session['id'] == id and session['admin']:
 		courses = []
 		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
 	# Else the user has the same id or the admin is in another users info
@@ -469,7 +515,7 @@ def edit_profile(id):
 		# Extracts password and salt to validate
 		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
 		# Admin can bypass password verification or user must match their password
-		if session['id'] != int(id) or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
+		if session['id'] != id or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
@@ -495,7 +541,7 @@ def edit_profile(id):
 			fieldValues.append(id)
 			# Update the database to include the new set parameters by the user
 			update("users", fieldsToUpdate, "id=?", fieldValues)
-			if (session['id'] != int(id) and session['admin']) or (session['id'] == int(id) and not session['admin']):
+			if (session['id'] != id and session['admin']) or (session['id'] == id and not session['admin']):
 				# Grab all the checkboxes that were checked
 				course_ids = request.form.getlist("course_ids")
 				# Secure against code injecting checkboxes
@@ -513,7 +559,7 @@ def edit_profile(id):
 						insert("courses_taken", ("uid", "cid"), (id, cid))
 
 			# If admin is editing the profile, only change the session variables for the user
-			if session['id'] == int(id):
+			if session['id'] == id:
 				if session['admin'] and str(form.adminEmail.data) != "":
 					# Sets admin email to lowercase
 					update("users", ("email",), "id=?", (str(form.adminEmail.data).lower(), id))
@@ -524,7 +570,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, id=int(id))
+	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, id=id)
 
 @app.route('/user/<string:id>')
 def user_profile(id):

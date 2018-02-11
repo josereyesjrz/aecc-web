@@ -1,0 +1,24 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+	<h1>Upcoming Events</h1>
+	{% for event in upcoming %}
+	<div>
+	  <p>{{ event.edate }} : <a href="{{ url_for('event', eid=event.eid) }}">{{event.etitle}}</a>
+	  {% if session.admin %}
+		<a href="{{ url_for('delete_event', eid=event.eid) }}">(delete)</a>
+	  {% endif %}
+	  </p>
+	</div>
+  	{% endfor %}
+  	<h1>Past Events</h1>
+  	{% for event in past %}
+	<div>
+	  <p>{{ event.edate }} : <a href="{{ url_for('event', eid=event.eid) }}">{{event.etitle}}</a>
+	  {% if session.admin %}
+	  <a href="{{ url_for('delete_event', eid=event.eid) }}">(delete)</a>
+	  {% endif %}
+	  </p>
+	</div>
+  	{% endfor %}
+{% endblock %}

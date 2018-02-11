@@ -2,6 +2,8 @@
 
 {% block body %}
   <h1>Admin Panel</h1>
+  
+  <h3>Non-member users</h3>
   {% for pending in result %}
   	<div>
   	{% if pending['customPicture'] == "FALSE" %}
@@ -9,7 +11,7 @@
 	{% else %}
 		<img src="{{ url_for('static', filename='uploads/'+pending['customPicture']) }}" height="25" width="25">
 	{% endif %}
-	<strong>{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</strong> 
+	<strong><a href="{{ url_for('user_profile', id=pending['id']) }}">{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</a></strong> 
 	: [{{ pending['status'] }}] <a href="{{ url_for('activateMembership', id=pending['id'], memberType='AECC') }}">(Activate AECC)</a>
 	<a href="{{ url_for('activateMembership', id=pending['id'], memberType='ACM') }}">(Activate ACM)</a>
 	</div>

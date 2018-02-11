@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+  <h1>{{event.etitle}}</h1>
+  <small>When: {{ event.edate }} </small>
+  <div>
+  <small>Where: {{ event.elocation }} </small>
+  </div>
+  <hr>
+  <div>
+    {{event.edescription | safe}}
+  </div>
+{% endblock %}
