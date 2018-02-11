@@ -11,4 +11,9 @@
 		<a class="btn btn-success" href="{{url_for('edit_profile', id=session.id)}}">(Edit Profile)</a>
 	{% endif %}
   <p>Biography</p>
+  {% if user['biography'] == None %}
+  <p>This user has not written a biography.</p>
+  {% else %}
+ 	{{ user['biography']|safe }}
+  {% endif %}
 {% endblock %}
