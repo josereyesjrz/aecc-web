@@ -61,8 +61,6 @@ def new_checkout():
 @is_logged_in
 def show_checkout(transaction_id):
 	user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
-	email = user['email']
-	print(email)
 	# Get the transaction information by its id
 	transaction = braintree.Transaction.find(transaction_id)
 	result = {}
@@ -85,7 +83,7 @@ def show_checkout(transaction_id):
 			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id, memberType))
 			html = render_template('receipt.html', transaction = transaction, membertype = memberType, user = user)
 			subject = "Receipt"
-			emailToken.send_email(email, subject, html)
+			emailToken.send_email(user['email'], subject, html)
 	# Something went wrong when processing the transaction.
 	else:
 		result = {	
