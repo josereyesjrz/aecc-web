@@ -1,0 +1,33 @@
+<p>Se realizo un pago para la membresia de {{ user['studentFirstName']}} {{ user['studentLastName']}} para la AECC </p>	
+<p>Recibo de la Transaccion en linea:</p>
+<p>------------------------------------------</p>
+<table>
+  <tr>
+    <td>Tipo de membresia </td>
+    <td>{{ membertype }}</td>
+  </tr>
+  <tr>
+    <td>Costo: </</td>
+    <td>${{ transaction.amount }}</td>
+  </tr>
+  <tr>
+    <td>Tipo de Tarjeta</td>
+    <td>{{ transaction.created_at }}</td>
+  </tr>
+  <tr>
+    <td>Tipo de Tarjeta</td>
+    <td>{{ transaction.credit_card_details.card_type }}</td>
+  </tr>
+  <tr>
+    <td>Tarjeta</td>
+    <td>**** **** **** {{ transaction.credit_card_details.last_4 }}</td>
+  </tr>
+  <tr>
+    <td>Codigo de recibo</td>
+    <td>{{ transaction.id }}</td>
+  </tr>
+</table>
+<p>-------------------------------------------</p>
+<img src="https://aecc-uprrp.github.io/images/Logo.svg" height="250" width="250"/>
+<br>
+<p>-La Directiva</p>

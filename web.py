@@ -60,15 +60,18 @@ def new_checkout():
 @app.route('/checkouts/<transaction_id>', methods=['GET'])
 @is_logged_in
 def show_checkout(transaction_id):
+	user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
+	email = user['email']
+	print(email)
 	# Get the transaction information by its id
 	transaction = braintree.Transaction.find(transaction_id)
 	result = {}
 	# Check the transaction status to see if it was successfully processed.
 	if transaction.status in TRANSACTION_SUCCESS_STATUSES:
 		result = {
-			'header': 'Sweet Success!',
+			'header': 'Payment has been process',
 			'icon': 'success',
-			'message': 'Your test transaction has been successfully processed. See the Braintree API response and try again.'
+			'message': 'An e-mail has been sent with your receipt'
 		}
 		# Check to see if transaction was already in the database to avoid the user from
 		# attempting to gain membership again without paying.
@@ -78,11 +81,14 @@ def show_checkout(transaction_id):
 			memberType = "ACM" if transaction.amount == 20 else "AECC"
 			# Insert the newly processed transaction and store the memberType according
 			# to the amount paid by the user. 20 for ACM, 5 for AECC
+
 			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id, memberType))
-			
+			html = render_template('receipt.html', transaction = transaction, membertype = memberType, user = user)
+			subject = "Receipt"
+			emailToken.send_email(email, subject, html)
 	# Something went wrong when processing the transaction.
 	else:
-		result = {
+		result = {	
 			'header': 'Transaction Failed',
 			'icon': 'fail',
 			'message': 'Your test transaction has a status of ' + transaction.status + '. See the Braintree API response and try again.'
