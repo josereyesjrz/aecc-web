@@ -3,7 +3,8 @@ from datetime import datetime
 # Cryptography
 import scrypt
 # Upload
-from os import path, remove, stat, environ, urandom
+from os import path, remove, stat, environ, urandom, makedirs, listdir
+from shutil import copy2
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
@@ -179,9 +180,10 @@ def members():
 # Members
 @app.route('/about')
 def about():
+	directiveFolder = getDirectiveFolder().replace('static/', '')
 	# Extracts admin info from db
 	directivaMembers = query_db("SELECT studentID,studentFirstName,studentLastName,customPicture FROM users WHERE priviledge = 'ADMIN'")
-	return render_template('about.html', directiva=directivaMembers)
+	return render_template('about.html', directiva=directivaMembers, directiveFolder=directiveFolder)
 
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
@@ -494,6 +496,14 @@ def events():
 
 # === PROFILE === #
 
+def getDirectiveFolder():
+	currentdate = datetime.now()
+	directiveyear = currentdate.year if currentdate.month >= 8 else currentdate.year - 1
+	currentDirectiveFolder = "static/images/directiva{}".format(directiveyear)
+	if not path.exists(currentDirectiveFolder):
+		makedirs(currentDirectiveFolder)
+	return currentDirectiveFolder
+
 #Edit profile
 @app.route('/edit_profile/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
@@ -507,6 +517,7 @@ def edit_profile(id):
 	# If admin, get different form with admin email
 	if session['id'] == id and session['admin']:
 		courses = []
+		userCourseIDs = []
 		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
 	# Else the user has the same id or the admin is in another users info
 	else:
@@ -524,8 +535,12 @@ def edit_profile(id):
 			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
-			fieldsToUpdate = ["studentFirstName", "studentLastName", "biography"]
-			fieldValues = [studentFirstName, studentLastName, form.biography.data]
+			if session['id'] == id and session['admin']:
+				fieldsToUpdate = ["studentFirstName", "studentLastName"]
+				fieldValues = [studentFirstName, studentLastName]
+			else:
+				fieldsToUpdate = ["studentFirstName", "studentLastName", "biography"]
+				fieldValues = [studentFirstName, studentLastName, form.biography.data]
 			if filename != "":
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
@@ -533,6 +548,15 @@ def edit_profile(id):
 					if path.exists(img):
 						remove(img)
 				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
+				# To store images of directives
+				if session['id'] == id and session['admin']:
+					currentDirectiveFolder = getDirectiveFolder()
+					for img in glob.glob(currentDirectiveFolder + "/" + str(id)+".*"):
+						if path.exists(img):
+							remove(img)
+					if path.exists(currentDirectiveFolder):
+						copy2(path.join(app.config['UPLOAD_FOLDER']+"/{}".format(filename)), currentDirectiveFolder)
+
 				fieldsToUpdate.append("customPicture")
 				fieldValues.append(filename)
 			if str(form.new_password.data) != "":

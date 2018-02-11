@@ -22,7 +22,7 @@
 		  	{% if member['customPicture'] == "FALSE" %}
 		  		<img src="{{ url_for('static', filename='images/icon-default.jpg') }}" height="200" width="200">
 			{% else %}
-				<img src="{{ url_for('static', filename='uploads/'+member['customPicture']) }}" height="200" width="200">
+				<img src="{{ url_for('static', filename=directiveFolder+'/'+member['customPicture']) }}" height="200" width="200">
 			{% endif %}
 			<p><strong>{{ member['studentFirstName'] + " " + member['studentLastName'] }}</strong></p>
 			{% if member['studentID'] == "vicepresidente" %}
