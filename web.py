@@ -164,7 +164,19 @@ def hashed_static_file(endpoint, values):
 # Index
 @app.route('/')
 def index():
-	return render_template('home.html')
+	maxEventsPerList = 3
+	eventList = query_db("SELECT * FROM events ORDER BY edate LIMIT 10")
+	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
+	# Sort upcoming events so that the closest in date appear first rather than future ones.
+	upcoming.sort(key=lambda x: x['edate'], reverse=True)
+	upcomingIDs = [eid['eid'] for eid in upcoming]
+	past = [event for event in eventList if event['eid'] not in upcomingIDs]
+	past.reverse()
+	if len(upcoming) > maxEventsPerList:
+		upcoming = upcoming[-3:]
+	if len(past) > maxEventsPerList:
+		past = past[:maxEventsPerList]
+	return render_template('home.html', currentEvents=upcoming, pastEvents=past)
 
 @app.errorhandler(404)
 def page_not_found(e):
@@ -490,8 +502,11 @@ def event(eid):
 def events():
 	eventList = query_db("SELECT * FROM events ORDER BY edate")
 	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
+	# Sort by most recent to least recent
+	upcoming.sort(key=lambda x: x['edate'], reverse=True)
 	upcomingIDs = [eid['eid'] for eid in upcoming]
 	past = [event for event in eventList if event['eid'] not in upcomingIDs]
+	past.reverse()
 	return render_template("events.html", upcoming=upcoming, past=past)
 
 # === PROFILE === #

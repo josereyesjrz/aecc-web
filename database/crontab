@@ -11,4 +11,4 @@ MAILTO="aecc.upr@gmail.com"
 # |   |   |   |   |   6. commandline
 # |   |   |   |   |   |
 #min hr  dom mon dow command
-  0   3   *   *   *  sqlite3 -line database.db 'DELETE FROM users WHERE date_created <= datetime('now', '-7 days') and status = 'PENDING';' >/dev/null
+  0   3   *   *   *  sqlite3 -line database.db "DELETE FROM users WHERE status = 'PENDING' and date_created <= datetime('now', '-7 days');" >/dev/null
