@@ -165,17 +165,10 @@ def hashed_static_file(endpoint, values):
 @app.route('/')
 def index():
 	maxEventsPerList = 3
-	eventList = query_db("SELECT * FROM events ORDER BY edate LIMIT 10")
-	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
+	upcoming = query_db("SELECT * FROM events WHERE edate>=? ORDER BY edate ASC LIMIT ?", [str(datetime.now()), maxEventsPerList])
+	past = query_db("SELECT * FROM events WHERE edate<? ORDER BY edate DESC LIMIT ?", [str(datetime.now()), maxEventsPerList])
 	# Sort upcoming events so that the closest in date appear first rather than future ones.
 	upcoming.sort(key=lambda x: x['edate'], reverse=True)
-	upcomingIDs = [eid['eid'] for eid in upcoming]
-	past = [event for event in eventList if event['eid'] not in upcomingIDs]
-	past.reverse()
-	if len(upcoming) > maxEventsPerList:
-		upcoming = upcoming[-3:]
-	if len(past) > maxEventsPerList:
-		past = past[:maxEventsPerList]
 	return render_template('home.html', currentEvents=upcoming, pastEvents=past)
 
 @app.errorhandler(404)
