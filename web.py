@@ -1,5 +1,5 @@
 from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, Markup
-from datetime import datetime
+from datetime import datetime, date
 # Cryptography
 import scrypt
 # Upload
@@ -165,8 +165,9 @@ def hashed_static_file(endpoint, values):
 @app.route('/')
 def index():
 	maxEventsPerList = 3
-	upcoming = query_db("SELECT * FROM events WHERE edate>=? ORDER BY edate ASC LIMIT ?", [str(datetime.now()), maxEventsPerList])
-	past = query_db("SELECT * FROM events WHERE edate<? ORDER BY edate DESC LIMIT ?", [str(datetime.now()), maxEventsPerList])
+	today = str(date.today())
+	upcoming = query_db("SELECT * FROM events WHERE edate>=? ORDER BY edate ASC LIMIT ?", [today, maxEventsPerList])
+	past = query_db("SELECT * FROM events WHERE edate<? ORDER BY edate DESC LIMIT ?", [today, maxEventsPerList])
 	# Sort upcoming events so that the closest in date appear first rather than future ones.
 	upcoming.sort(key=lambda x: x['edate'], reverse=True)
 	return render_template('home.html', currentEvents=upcoming, pastEvents=past)
@@ -179,7 +180,9 @@ def page_not_found(e):
 @app.route('/members')
 def members():
 	# Extracts active members from db
+	#"SELECT memberType FROM transactions INNER JOIN manual_activations WHERE uid=id"
 	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'MEMBER'")
+	
 	return render_template('members.html', results=results)
 
 # Members

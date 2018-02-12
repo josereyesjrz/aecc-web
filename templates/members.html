@@ -11,6 +11,7 @@
 	{% endif %}
   	<a href="{{ url_for('user_profile', id=result['id']) }}"><strong>{{result['studentFirstName'] + " " + result['studentLastName']}}</strong></a>
   {% if session.admin %}
+  {{ result['memberType'] }}
   <a href="{{ url_for('suspendMembership', id=result['id']) }}">(Suspend)</a>
   {% endif %}
   </ul>
