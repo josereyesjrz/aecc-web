@@ -55,6 +55,9 @@ def client_token():
 @app.route('/checkouts/new', methods=['GET'])
 @is_logged_in
 def new_checkout():
+	if session['admin']:
+		flash('Error: Admins are not supposed to have memberships.', 'danger')
+		return redirect(url_for('adminPanel'))
 	client_token = braintree.ClientToken.generate()
 	return render_template('payment.html', client_token=client_token)
 
@@ -63,7 +66,10 @@ def new_checkout():
 def show_checkout(transaction_id):
 	user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
 	# Get the transaction information by its id
-	transaction = braintree.Transaction.find(transaction_id)
+	try:
+		transaction = braintree.Transaction.find(transaction_id)
+	except:
+		return render_template('404.html')
 	result = {}
 	# Check the transaction status to see if it was successfully processed.
 	if transaction.status in TRANSACTION_SUCCESS_STATUSES:
