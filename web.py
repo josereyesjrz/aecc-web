@@ -47,7 +47,7 @@ TRANSACTION_SUCCESS_STATUSES = [
 ]
 
 #Generate token
-@app.route("/client_token", methods=["GET"])
+@app.route("/client-token", methods=["GET"])
 @is_logged_in
 def client_token():
 	return braintree.ClientToken.generate()
@@ -513,7 +513,7 @@ def getDirectiveFolder():
 	return currentDirectiveFolder
 
 #Edit profile
-@app.route('/edit_profile/<int:id>', methods=['GET', 'POST'])
+@app.route('/edit-profile/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
 @is_allowed_edit
 def edit_profile(id):
