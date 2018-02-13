@@ -64,7 +64,6 @@ def new_checkout():
 @app.route('/checkouts/<transaction_id>', methods=['GET'])
 @is_logged_in
 def show_checkout(transaction_id):
-	user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
 	# Get the transaction information by its id
 	try:
 		transaction = braintree.Transaction.find(transaction_id)
@@ -88,6 +87,8 @@ def show_checkout(transaction_id):
 			# to the amount paid by the user. 20 for ACM, 5 for AECC
 
 			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id, memberType))
+			# Extracts email and student's name for receipt email
+			user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
 			html = render_template('receipt.html', transaction = transaction, membertype = memberType, user = user)
 			subject = "Receipt"
 			emailToken.send_email(user['email'], subject, html)
@@ -172,7 +173,9 @@ def hashed_static_file(endpoint, values):
 def index():
 	maxEventsPerList = 3
 	today = str(date.today())
+	# Looks up recent upcoming events
 	upcoming = query_db("SELECT * FROM events WHERE edate>=? ORDER BY edate ASC LIMIT ?", [today, maxEventsPerList])
+	# Looks up recent past events
 	past = query_db("SELECT * FROM events WHERE edate<? ORDER BY edate DESC LIMIT ?", [today, maxEventsPerList])
 	# Sort upcoming events so that the closest in date appear first rather than future ones.
 	upcoming.sort(key=lambda x: x['edate'], reverse=True)
@@ -186,8 +189,9 @@ def page_not_found(e):
 @app.route('/members')
 def members():
 	# Extracts active members from db
-	#"SELECT memberType FROM transactions INNER JOIN manual_activations WHERE uid=id"
 	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'MEMBER'")
+	#"SELECT memberType FROM transactions INNER JOIN manual_activations WHERE uid=id"
+
 	
 	return render_template('members.html', results=results)
 
@@ -204,20 +208,24 @@ def about():
 @anonymous_user_required
 def register():
 	form = RegisterForm(request.form)
+	# Extracts majors
+	majors = query_db("SELECT mname FROM majors")
 	if request.method == 'POST' and form.validate():
 		email = str(form.email.data).lower()
 		if email.endswith("@upr.edu"):
 			studentID = str(form.studentID.data)
 			phoneNumber = str(form.phoneNumber.data)
+			currentMajor = str(request.form['majors'])
+			print currentMajor
 			# Check that student number, email and phone number are unique
-			if query_db("SELECT id FROM users WHERE studentID = ?", [studentID]) == None:
+			if query_db("SELECT id FROM users WHERE studentID = ?", [studentID]):
 				flash('Student Number already taken.', 'danger')
-			elif query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email]) == None:
+			elif query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email]):
 				flash('Email address already taken.', 'danger')
-			elif query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber]) == None:
+			elif query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber]):
 				flash('Phone Number already taken.', 'danger')
 			# Valid major check
-			elif query_db("SELECT * FROM majors WHERE mname = ?", [str(request.form['majors'])], True) == None:
+			elif query_db("SELECT * FROM majors WHERE mname = ?", [currentMajor], True) == None:
 				flash('Invalid Major entered.', 'danger')
 			else:
 				# Generate a random salt
@@ -232,7 +240,9 @@ def register():
 				
 				# Insert the user into the database with all corresponding fields and return its table row id
 				userID = insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
-				
+				majorID = query_db("SELECT mid FROM majors WHERE mname=?", [currentMajor], True)
+
+				insert("user_majors", ("uid", "mid"), (userID, majorID['mid']))
 				# Generate and send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
 				confirm_url = url_for('confirm_email', token=token, _external=True)
@@ -260,7 +270,7 @@ def register():
 		# Flash the user with message indicating invalid UPR institutional email.
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
-	return render_template('register.html', form=form)
+	return render_template('register.html', form=form, majors=majors)
 
 # User login
 @app.route('/login', methods=['GET', 'POST'])
@@ -479,11 +489,13 @@ def create_event():
 @is_logged_in
 @is_admin
 def edit_event(eid):
+	# Extracts info from event to edit
 	eventInfo = query_db("SELECT * FROM events WHERE eid=?", [eid], True)
 	if eventInfo == None:
 		return render_template("404.html")
 	form = EventForm(title=eventInfo['etitle'], date=eventInfo['edate'], location=eventInfo['elocation'], body=eventInfo['edescription'])
 	if request.method == 'POST' and form.validate_on_submit():
+		# Updates event info
 		update("events", ("etitle", "edate", "elocation", "edescription"), "eid=?", (form.title.data, form.date.data, form.location.data, form.body.data, eventInfo['eid']))
 		return redirect(url_for('event', eid=eid))
 	return render_template("edit_event.html", form=form)
@@ -497,12 +509,14 @@ def delete_event(eid):
 
 @app.route('/event/<string:eid>')
 def event(eid):
+	# Extracts info of specific event
 	event = query_db("SELECT edate, etitle, elocation, edescription FROM events WHERE eid=?", [eid], True)
 	return render_template("event.html", event=event)
 
 @app.route('/events')
 def events():
-	eventList = query_db("SELECT * FROM events ORDER BY edate")
+	# Extracts up to 50 events
+	eventList = query_db("SELECT * FROM events ORDER BY edate LIMIT 50")
 	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
 	# Sort by most recent to least recent
 	upcoming.sort(key=lambda x: x['edate'], reverse=True)
@@ -526,33 +540,49 @@ def getDirectiveFolder():
 @is_logged_in
 @is_allowed_edit
 def edit_profile(id):
-	# Gets student's name and email by id
+	# Gets student's name and email by id.
 	result = query_db("SELECT studentFirstName,studentLastName,email,biography FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
-	# If admin, get different form with admin email
-	if session['id'] == id and session['admin']:
+	# If admin, get different form with admin email.
+	isAdminAccount = True if session['id'] == id and session['admin'] else False
+	if isAdminAccount:
 		courses = []
 		userCourseIDs = []
+		majors = []
+		userMajor = ""
 		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
-	# Else the user has the same id or the admin is in another users info
+	# Else the user has the same id or the admin is in another users info.
 	else:
-		# TODO: Pre-fill values of courses already taken by the user
+		# Grab all courses.
+		courses = query_db("SELECT * FROM courses")
+		# Select the courses taken by that user.
 		userCourseIDs = query_db("SELECT cid FROM courses_taken where uid=?", [id])
 		userCourseIDs = [ucID['cid'] for ucID in userCourseIDs]
-		courses = query_db("SELECT * FROM courses")
+		# Create form for the regular users to display current information about that user.
 		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'])
+		# Extracts majors
+		majors = query_db("SELECT * FROM majors")
+		# Looks up a user's major
+		userMajor = query_db("SELECT mid FROM user_majors WHERE uid=?", [id], True)['mid']
 	if request.method == 'POST' and form.validate_on_submit():
-		# Extracts password and salt to validate
+		currentMajor = ""
+		if not isAdminAccount:
+			currentMajor = request.form['majors']
+			if query_db("SELECT * FROM majors WHERE mname=?", [currentMajor], True) == None:
+				flash('Wrong major entered.', 'danger')
+				return redirect(url_for('edit_profile', id=id))
+
+		# Extracts password and salt to validate.
 		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
-		# Admin can bypass password verification or user must match their password
+		# Admin can bypass password verification or user must match their password.
 		if session['id'] != id or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
-			if session['id'] == id and session['admin']:
+			if isAdminAccount:
 				fieldsToUpdate = ["studentFirstName", "studentLastName"]
 				fieldValues = [studentFirstName, studentLastName]
 			else:
@@ -587,6 +617,11 @@ def edit_profile(id):
 			# Update the database to include the new set parameters by the user
 			update("users", fieldsToUpdate, "id=?", fieldValues)
 			if (session['id'] != id and session['admin']) or (session['id'] == id and not session['admin']):
+
+				majorID = query_db("SELECT mid FROM majors WHERE mname=?", [currentMajor], True)
+				# Updates the user's major
+				update("user_majors", ["mid"], "uid=?", [majorID['mid'], id])
+
 				# Grab all the checkboxes that were checked
 				course_ids = request.form.getlist("course_ids")
 				# Secure against code injecting checkboxes
@@ -615,7 +650,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, id=id)
+	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, id=id)
 
 @app.route('/user/<string:id>')
 def user_profile(id):
@@ -646,7 +681,6 @@ def user_profile(id):
 			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="'+url_for('resend_confirmation')+'">Resend</a>'), 'warning')
 		return render_template('user_profile.html', user=user)
 	return render_template('user_profile.html', user=user)
-
 
 if __name__ == '__main__':
 	app.run(debug=True)

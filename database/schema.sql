@@ -155,6 +155,19 @@ create table majors (
 	mname text not null
 );
 
+-- this table contains majors of each user
+-- as specified when they register
+-- uid references user's id
+-- mid references major's id
+drop table if exists user_majors;
+create table user_majors (
+	uid integer not null,
+	mid integer not null,
+	foreign key (uid) references users(id) on delete cascade,
+	foreign key (mid) references majors(mid),
+	primary key(uid)
+);
+
 -- these queries add the CCOM and MATE majors into
 -- the corresponding table
 insert into majors (mname) values ("Computer Science");

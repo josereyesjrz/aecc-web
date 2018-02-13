@@ -42,7 +42,7 @@ class ProfileForm(FlaskForm):
 	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
 	studentFirstName = StringField('First Name', validators=[validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', validators=[validators.Length(min=1,max=25)])
-	password = PasswordField('Current Password', [
+	password = PasswordField('Current Password (Enter to make any changes)', [
 		validators.DataRequired(message='Enter your password to make any changes.')
 	])
 	new_password = PasswordField('New Password', [
@@ -57,7 +57,6 @@ class EventForm(FlaskForm):
 	date = StringField('Date (YYYY-MM-DD)', validators=[validators.DataRequired(), validators.Length(max=100), validators.Regexp("([2]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))",message = "Wrong date format.")])	
 	location = StringField('Location', validators=[validators.DataRequired(), validators.Length(max=100)])	
 	body = TextAreaField('Description', validators=[validators.DataRequired(), validators.Length(max=5000)])
-	
 
 # ==== Forgot Password ====
 # https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/

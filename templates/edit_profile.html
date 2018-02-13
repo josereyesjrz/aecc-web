@@ -28,6 +28,18 @@
       {{render_field(form.confirm, class_="form-control")}}
     </div>
     {% if (session.id == id and not session.admin) or (session.id != id and session.admin) %}
+      <div class="form-group">
+        <label for="major">Major: </label>
+        <select class="form-control" name="majors", id="majors">
+          {% for major in majors %}
+          {% if major['mid'] == userMajor %}
+          <option value = "{{major['mname']}}" selected="selected">{{major['mname']}}</option>
+          {% else %}
+          <option value = "{{major['mname']}}">{{major['mname']}}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
       <strong>Courses Taken</strong>
       <div>
       {% for course in courses %}
