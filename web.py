@@ -25,17 +25,17 @@ mail = Mail(app)
 from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
 from db import get_db, close_connection, insert, update, delete, query_db
 from forms import RegisterForm, AdminForm, ProfileForm, EventForm, ResetPassword, ResetPasswordSubmit
-
+# Loads the Braintree credentials
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
-
+# Configures it.
 braintree.Configuration.configure(
 	environ.get('BT_ENVIRONMENT'),
 	environ.get('BT_MERCHANT_ID'),
 	environ.get('BT_PUBLIC_KEY'),
 	environ.get('BT_PRIVATE_KEY')
 )
-
+# Set the status for transactions
 TRANSACTION_SUCCESS_STATUSES = [
 	braintree.Transaction.Status.Authorized,
 	braintree.Transaction.Status.Authorizing,
@@ -46,21 +46,23 @@ TRANSACTION_SUCCESS_STATUSES = [
 	braintree.Transaction.Status.SubmittedForSettlement
 ]
 
-#Generate token
+# Generate token
 @app.route("/client-token", methods=["GET"])
 @is_logged_in
 def client_token():
 	return braintree.ClientToken.generate()
-
+# Where the membership payments is located
 @app.route('/checkouts/new', methods=['GET'])
 @is_logged_in
+# Creates a new Checkout for a user membership
 def new_checkout():
+	# Checks that an admin is not paying for the membership
 	if session['admin']:
 		flash('Error: Admins are not supposed to have memberships.', 'danger')
 		return redirect(url_for('adminPanel'))
 	client_token = braintree.ClientToken.generate()
 	return render_template('payment.html', client_token=client_token)
-
+# After each checkout, it will inset the information into the database and will send an automatic email with the receipt.
 @app.route('/checkouts/<transaction_id>', methods=['GET'])
 @is_logged_in
 def show_checkout(transaction_id):
@@ -101,7 +103,7 @@ def show_checkout(transaction_id):
 		}
 
 	return render_template('show_payment.html', transaction=transaction, result=result)
-
+# After the user press pay, it will create a checkout with the braintree server and proccess the payment.
 @app.route('/checkouts', methods=['POST'])
 @is_logged_in
 def create_checkout():
@@ -134,7 +136,7 @@ def create_checkout():
 		flash('Error: Incorrect membership payment amount.', 'danger')
 		return redirect(url_for('new_checkout'))
 
-
+# Admins List
 directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
 
 gravatar = Gravatar(app,
@@ -148,6 +150,7 @@ gravatar = Gravatar(app,
 
 
 # === Fixing cached static files in Flask ===
+
 # https://gist.github.com/Ostrovski/f16779933ceee3a9d181
 @app.url_defaults
 def hashed_static_file(endpoint, values):
@@ -167,7 +170,7 @@ def hashed_static_file(endpoint, values):
 			if path.exists(fp):
 				values['_'] = int(stat(fp).st_mtime)
 # === Fixing cached static files in Flask ===
-
+# Displays the closest upcoming events and the most recent past events
 # Index
 @app.route('/')
 def index():
@@ -180,11 +183,11 @@ def index():
 	# Sort upcoming events so that the closest in date appear first rather than future ones.
 	upcoming.sort(key=lambda x: x['edate'], reverse=True)
 	return render_template('home.html', currentEvents=upcoming, pastEvents=past)
-
+# If the users not supposed to be accessing an page redirects the page to a 404 error page
 @app.errorhandler(404)
 def page_not_found(e):
 	return render_template('404.html'), 404
-
+# Displays all current active members(Here will show the ones that had payed their membership)
 # Members
 @app.route('/members')
 def members():
@@ -194,7 +197,7 @@ def members():
 
 	
 	return render_template('members.html', results=results)
-
+# In the navbar, theres an about tab. Here it will display the current members of the directive and their mission and vision ad what is the AECC
 # Members
 @app.route('/about')
 def about():
@@ -202,7 +205,7 @@ def about():
 	# Extracts admin info from db
 	directivaMembers = query_db("SELECT studentID,studentFirstName,studentLastName,customPicture FROM users WHERE priviledge = 'ADMIN'")
 	return render_template('about.html', directiva=directivaMembers, directiveFolder=directiveFolder)
-
+# Will let a user that doesnt have an account create a new account
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
 @anonymous_user_required
@@ -271,7 +274,7 @@ def register():
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
 	return render_template('register.html', form=form, majors=majors)
-
+# Will let any non logged in user to logged in to their profile
 # User login
 @app.route('/login', methods=['GET', 'POST'])
 @anonymous_user_required
@@ -339,7 +342,7 @@ def verify_token(token):
 	if id:
 		return id
 	return None
-
+# If Forgot Password is pressed, it will send the user an email with a link to be able to reset his/her password
 @app.route('/reset-password', methods=['GET', 'POST'])
 @anonymous_user_required
 def forgot_password():
@@ -357,7 +360,7 @@ def forgot_password():
 			emailToken.send_email(email, subject, html)
 			flash('A password reset email has been sent.', 'success')
 	return render_template('forgot_password.html', form=form)
-
+# After recieving the forgot password email, it will be redirected here to change the password
 @app.route('/users/reset/<token>', methods=['GET', 'POST'])
 @anonymous_user_required
 def reset_password(token):
@@ -375,7 +378,7 @@ def reset_password(token):
 			return redirect(url_for('login'))
 		return render_template("reset_password.html", form=password_submit_form)
 	return render_template('404.html')
-
+# Sends a confirmation email when a new user is created
 # Email Confirmation
 @app.route('/confirm/<token>')
 @is_logged_in
@@ -398,7 +401,7 @@ def confirm_email(token):
 	else:
 		return render_template('404.html')
 	return redirect(url_for('index'))
-
+# Will display a warning that the profile hasnt been confirmed
 @app.route('/unconfirmed')
 @is_logged_in
 def unconfirmed():
@@ -407,7 +410,7 @@ def unconfirmed():
 		return redirect(url_for('user_profile', id=session['id']))
 	flash('Please confirm your account!', 'warning')
 	return render_template('unconfirmed.html')
-
+# If the users hasn't confirmed the email. They will be able to send a confirmation email again
 @app.route('/resend')
 @is_logged_in
 def resend_confirmation():
@@ -426,7 +429,7 @@ def logout():
 	session.clear()
 	flash('You are now logged out', 'success')
 	return redirect(url_for('login'))
-
+# If logged in as an admin, there will be a tab available that is the Admin Panel, which lets them see more information than other users can see
 @app.route('/admin')
 @is_logged_in
 @is_admin
@@ -434,7 +437,7 @@ def adminPanel():
 	# Extracts users who are not members nor admins
 	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'MEMBER' and priviledge != 'ADMIN'")
 	return render_template('admin.html', result=anythingButMembers)
-
+# If the users decide to pay in person, an Admin can activate the membership in the admin panel
 @app.route('/activate/<string:id>/<string:memberType>')
 @is_logged_in
 @is_admin
@@ -454,7 +457,7 @@ def activateMembership(id, memberType):
 	insert("manual_activations", ("uid", "aid", "tdate", "membertype"), (id, session["id"], datetime.now(), memberType))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " is now a member!", "success")
 	return redirect(url_for('adminPanel'))
-
+# Admins can suspend active membership due to breaking the rules.
 @app.route('/suspend/<string:id>')
 @is_logged_in
 @is_admin
@@ -474,7 +477,7 @@ def suspendMembership(id, studentFirstName="", studentLastName=""):
 	return redirect(url_for('members'))
 
 # === EVENTS === #
-
+# Any admin can create new events when it will be held, a description on what the event is, the location of said event.
 @app.route('/create-event',  methods=['GET', 'POST'])
 @is_logged_in
 @is_admin
@@ -484,7 +487,7 @@ def create_event():
 		eventID = insert("events", ("etitle", "edate", "elocation", "edescription"), (form.title.data, form.date.data, form.location.data, form.body.data))
 		return redirect(url_for('event', eid=eventID))
 	return render_template("create_event.html", form=form)
-
+# Once an event is created, the admin can change the description, change the date, etc
 @app.route('/edit-event/<string:eid>',  methods=['GET', 'POST'])
 @is_logged_in
 @is_admin
@@ -499,20 +502,20 @@ def edit_event(eid):
 		update("events", ("etitle", "edate", "elocation", "edescription"), "eid=?", (form.title.data, form.date.data, form.location.data, form.body.data, eventInfo['eid']))
 		return redirect(url_for('event', eid=eid))
 	return render_template("edit_event.html", form=form)
-
+# When logged in as an admin, it will let to delete events that were created(for cancelled events, past events, etc) 
 @app.route('/delete-event/<string:eid>')
 @is_logged_in
 @is_admin
 def delete_event(eid):
 	delete("events", "eid=?", [eid])
 	return redirect(url_for('events'))
-
+# Display the information of an expecific event.
 @app.route('/event/<string:eid>')
 def event(eid):
 	# Extracts info of specific event
 	event = query_db("SELECT edate, etitle, elocation, edescription FROM events WHERE eid=?", [eid], True)
 	return render_template("event.html", event=event)
-
+# It will display a list of past and upcoming events.
 @app.route('/events')
 def events():
 	# Extracts up to 50 events
@@ -526,7 +529,7 @@ def events():
 	return render_template("events.html", upcoming=upcoming, past=past)
 
 # === PROFILE === #
-
+# Saves the images of past directive members. 
 def getDirectiveFolder():
 	currentdate = datetime.now()
 	directiveyear = currentdate.year if currentdate.month >= 8 else currentdate.year - 1
@@ -535,7 +538,7 @@ def getDirectiveFolder():
 		makedirs(currentDirectiveFolder)
 	return currentDirectiveFolder
 
-#Edit profile
+# Edit profile
 @app.route('/edit-profile/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
 @is_allowed_edit
@@ -651,7 +654,7 @@ def edit_profile(id):
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
 	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, id=id)
-
+# Loads the profile of the member that was selected
 @app.route('/user/<string:id>')
 def user_profile(id):
 	# Get public user information by id
