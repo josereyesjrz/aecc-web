@@ -4,17 +4,47 @@
   <h1>Admin Panel</h1>
   <h3>Welcome, {{ session['username']}}.</h3>
   <div class="container-fluid">
-  	<div class="row" id="pending">
+  	<div class="table-responsive" id="pending">
+      <table class="table">
+      <thead>
+        <tr>
+          <th>
+            
+          </th>
+          <th>
+            Name
+          </th>
+          <th>
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody>
   {% for pending in result %}
-  	<div class="col-xs-3 col-sm-3 col-md-3 col-lg-3">
+  	   <tr>
+        <td>
   	{% if pending['customPicture'] == "FALSE" %}
   		<img src="{{ pending['email'] | gravatar }}" height="25" width="25">
 	{% else %}
 		<img src="{{ url_for('static', filename='uploads/'+pending['customPicture']) }}" height="25" width="25">
 	{% endif %}
-	<strong>{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</strong> 
-	: [{{ pending['status'] }}] <a href="{{ url_for('activateMembership', id=pending['id']) }}">(Activate)</a>
+        </td>
+        <td>
+	<strong><a href="{{ url_for('user_profile', id=pending['id']) }}">{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</a></strong> 
+        </td>
+        <td>
+	[{{ pending['status'] }}] 
+        </td>
+        <td>
+          <a href="{{ url_for('activateMembership', id=pending['id'], memberType='AECC') }}">(Activate AECC)</a>
+        </td>
+        <td>
+          <a href="{{ url_for('activateMembership', id=pending['id'], memberType='ACM') }}">(Activate ACM)</a>
+        </td>
+      </tr>
   {% endfor %}
+      </tbody>
+      </table>
 	  </div>
 	</div>
 {% endblock %}
