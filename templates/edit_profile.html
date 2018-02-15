@@ -1,4 +1,5 @@
 {% extends 'layout.html' %}
+<!--Edited by Emmanuel Nieves -->
 
 {% block body %}
   <h1>Edit Profile</h1>
@@ -29,14 +30,17 @@
       {{render_field(form.confirm, class_="form-control")}}
     </div>
     <div>
+      <h3>Biography</h3>
       <textarea name="editor1" id="editor1" rows="10" cols="80">
                 This is my textarea to be replaced with CKEditor.
-            </textarea>
+      </textarea>
+    </br>
     </div>
     <div>
     <input type="submit" class="btn btn-primary" value="Submit">
     </div>
   </form>
+  </br>
 {% endblock %}
 
     {% block footer %}
