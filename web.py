@@ -1,13 +1,10 @@
-from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, send_from_directory, Markup
-from datetime import datetime
-from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
-from wtforms.fields.html5 import EmailField
-from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileAllowed, FileRequired
+from flask import Flask, current_app, render_template, flash, redirect, url_for, session, request, g, logging, Markup
+from datetime import datetime, date
 # Cryptography
 import scrypt
 # Upload
-from os import path, remove, stat, environ, urandom
+from os import path, remove, stat, environ, urandom, makedirs, listdir
+from shutil import copy2
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
@@ -26,18 +23,19 @@ app.config.from_pyfile('config.py')
 mail = Mail(app)
 
 from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
-from db import get_db, close_connection, insert, update, query_db
-
+from db import get_db, close_connection, insert, update, delete, query_db
+from forms import RegisterForm, AdminForm, ProfileForm, EventForm, ResetPassword, ResetPasswordSubmit
+# Loads the Braintree credentials
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
-
+# Configures it.
 braintree.Configuration.configure(
 	environ.get('BT_ENVIRONMENT'),
 	environ.get('BT_MERCHANT_ID'),
 	environ.get('BT_PUBLIC_KEY'),
 	environ.get('BT_PRIVATE_KEY')
 )
-
+# Set the status for transactions
 TRANSACTION_SUCCESS_STATUSES = [
 	braintree.Transaction.Status.Authorized,
 	braintree.Transaction.Status.Authorizing,
@@ -48,50 +46,64 @@ TRANSACTION_SUCCESS_STATUSES = [
 	braintree.Transaction.Status.SubmittedForSettlement
 ]
 
-#Generate token
-@app.route("/client_token", methods=["GET"])
+# Generate token
+@app.route("/client-token", methods=["GET"])
 @is_logged_in
 def client_token():
 	return braintree.ClientToken.generate()
-
+# Where the membership payments is located
 @app.route('/checkouts/new', methods=['GET'])
 @is_logged_in
+# Creates a new Checkout for a user membership
 def new_checkout():
+	# Checks that an admin is not paying for the membership
+	if session['admin']:
+		flash('Error: Admins are not supposed to have memberships.', 'danger')
+		return redirect(url_for('adminPanel'))
 	client_token = braintree.ClientToken.generate()
 	return render_template('payment.html', client_token=client_token)
-
+# After each checkout, it will inset the information into the database and will send an automatic email with the receipt.
 @app.route('/checkouts/<transaction_id>', methods=['GET'])
 @is_logged_in
 def show_checkout(transaction_id):
 	# Get the transaction information by its id
-	transaction = braintree.Transaction.find(transaction_id)
+	try:
+		transaction = braintree.Transaction.find(transaction_id)
+	except:
+		return render_template('404.html')
 	result = {}
 	# Check the transaction status to see if it was successfully processed.
 	if transaction.status in TRANSACTION_SUCCESS_STATUSES:
 		result = {
-			'header': 'Sweet Success!',
+			'header': 'Payment has been process',
 			'icon': 'success',
-			'message': 'Your test transaction has been successfully processed. See the Braintree API response and try again.'
+			'message': 'An e-mail has been sent with your receipt'
 		}
 		# Check to see if transaction was already in the database to avoid the user from
 		# attempting to gain membership again without paying.
 		if (query_db("SELECT * FROM transactions WHERE token=?", (transaction_id,), True) == None):
-			# Change the user status to ACTIVE to become a member.
-			update("users", ("status",), "id=?", ("ACTIVE", session['id']))
+			# Change the user status to MEMBER to become an official member.
+			update("users", ("status",), "id=?", ("MEMBER", session['id']))
 			memberType = "ACM" if transaction.amount == 20 else "AECC"
 			# Insert the newly processed transaction and store the memberType according
 			# to the amount paid by the user. 20 for ACM, 5 for AECC
+
 			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id, memberType))
+			# Extracts email and student's name for receipt email
+			user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
+			html = render_template('receipt.html', transaction = transaction, membertype = memberType, user = user)
+			subject = "Receipt"
+			emailToken.send_email(user['email'], subject, html)
 	# Something went wrong when processing the transaction.
 	else:
-		result = {
+		result = {	
 			'header': 'Transaction Failed',
 			'icon': 'fail',
 			'message': 'Your test transaction has a status of ' + transaction.status + '. See the Braintree API response and try again.'
 		}
 
 	return render_template('show_payment.html', transaction=transaction, result=result)
-
+# After the user press pay, it will create a checkout with the braintree server and proccess the payment.
 @app.route('/checkouts', methods=['POST'])
 @is_logged_in
 def create_checkout():
@@ -124,7 +136,7 @@ def create_checkout():
 		flash('Error: Incorrect membership payment amount.', 'danger')
 		return redirect(url_for('new_checkout'))
 
-
+# Admins List
 directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
 
 gravatar = Gravatar(app,
@@ -138,6 +150,7 @@ gravatar = Gravatar(app,
 
 
 # === Fixing cached static files in Flask ===
+
 # https://gist.github.com/Ostrovski/f16779933ceee3a9d181
 @app.url_defaults
 def hashed_static_file(endpoint, values):
@@ -157,85 +170,83 @@ def hashed_static_file(endpoint, values):
 			if path.exists(fp):
 				values['_'] = int(stat(fp).st_mtime)
 # === Fixing cached static files in Flask ===
-
+# Displays the closest upcoming events and the most recent past events
 # Index
 @app.route('/')
 def index():
-	return render_template('home.html')
-
+	maxEventsPerList = 3
+	today = str(date.today())
+	# Looks up recent upcoming events
+	upcoming = query_db("SELECT * FROM events WHERE edate>=? ORDER BY edate ASC LIMIT ?", [today, maxEventsPerList])
+	# Looks up recent past events
+	past = query_db("SELECT * FROM events WHERE edate<? ORDER BY edate DESC LIMIT ?", [today, maxEventsPerList])
+	# Sort upcoming events so that the closest in date appear first rather than future ones.
+	upcoming.sort(key=lambda x: x['edate'], reverse=True)
+	return render_template('home.html', currentEvents=upcoming, pastEvents=past)
+# If the users not supposed to be accessing an page redirects the page to a 404 error page
 @app.errorhandler(404)
 def page_not_found(e):
 	return render_template('404.html'), 404
 
+# Displays all current active members(Here will show the ones that had payed their membership)
 # Members
 @app.route('/members')
 def members():
-	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'ACTIVE'")
-	return render_template('members.html', results=results)
+	# Extracts active members from db
+	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'MEMBER'")
+	#"SELECT memberType FROM transactions INNER JOIN manual_activations WHERE uid=id"
 
+	
+	return render_template('members.html', results=results)
+# In the navbar, theres an about tab. Here it will display the current members of the directive and their mission and vision ad what is the AECC
 # Members
 @app.route('/about')
 def about():
+	directiveFolder = getDirectiveFolder().replace('static/', '')
+	# Extracts admin info from db
 	directivaMembers = query_db("SELECT studentID,studentFirstName,studentLastName,customPicture FROM users WHERE priviledge = 'ADMIN'")
-	return render_template('about.html', directiva=directivaMembers)
-
-# Register Form Class
-class RegisterForm(FlaskForm):
-	# Accept only digits for Student Number
-	studentID = StringField('Student Number', [validators.Regexp("\d{9}",message = "Enter a valid Student Number"),validators.DataRequired(), validators.Length(min=9, max=9)])
-
-	email = EmailField('Email', [validators.DataRequired(), validators.Length(min=10, max=35), validators.Email()])
-	studentFirstName = StringField('First Name', [validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
-	studentLastName = StringField('Last Name', [validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
-	phoneNumber = StringField('Phone Number', [validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
-	# TODO Add validators: At least 1 number, at least 1 uppercase
-	password = PasswordField('Password', [
-		validators.DataRequired(), validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
-		validators.EqualTo('confirm', message='Passwords do not match')
-	])
-	confirm = PasswordField('Confirm Password')
-	# Check to redirect to transaction payment
-	payNow = BooleanField("Pay Membership now?")
-
+	return render_template('about.html', directiva=directivaMembers, directiveFolder=directiveFolder)
+# Will let a user that doesnt have an account create a new account
 # User Register
 @app.route('/register', methods=['GET', 'POST'])
 @anonymous_user_required
 def register():
 	form = RegisterForm(request.form)
+	# Extracts majors
+	majors = query_db("SELECT mname FROM majors")
 	if request.method == 'POST' and form.validate():
 		email = str(form.email.data).lower()
 		if email.endswith("@upr.edu"):
 			studentID = str(form.studentID.data)
 			phoneNumber = str(form.phoneNumber.data)
+			currentMajor = str(request.form['majors'])
+			print currentMajor
 			# Check that student number, email and phone number are unique
-			if len(query_db("SELECT id FROM users WHERE studentID = ?", [studentID])):
+			if query_db("SELECT id FROM users WHERE studentID = ?", [studentID]):
 				flash('Student Number already taken.', 'danger')
-			elif len(query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email])):
+			elif query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email]):
 				flash('Email address already taken.', 'danger')
-			elif len(query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber])):
+			elif query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber]):
 				flash('Phone Number already taken.', 'danger')
 			# Valid major check
-			elif len(query_db("SELECT * FROM concentration WHERE conname = ?", [str(request.form['majors'])], True)) == 0:
+			elif query_db("SELECT * FROM majors WHERE mname = ?", [currentMajor], True) == None:
 				flash('Invalid Major entered.', 'danger')
 			else:
-				# TODO input validation de majors
-				try:
-					print(str(request.form['majors']))
-				except:
-					print("That was it")
 				# Generate a random salt
 				random_salt = urandom(64)
 				# Encode the salt to store its hex value into the database
 				salt = random_salt.encode('hex')
 				# Generate the hash using the password and salt
-				password = scrypt.hash(str(form.password.data), random_salt).encode('hex')
+				password = scrypt.hash(form.password.data.encode('utf-8'), random_salt).encode('hex')
 				# Store the values into variables to avoid repetition
-				firstName = str(form.studentFirstName.data)
-				lastName = str(form.studentLastName.data)
+				firstName = form.studentFirstName.data
+				lastName = form.studentLastName.data
 				
 				# Insert the user into the database with all corresponding fields and return its table row id
 				userID = insert("users", ("email", "studentID", "password", "salt", "studentFirstName", "studentLastName", "phoneNumber"), (email, studentID, password, salt, firstName, lastName, phoneNumber))
-				
+				majorID = query_db("SELECT mid FROM majors WHERE mname=?", [currentMajor], True)
+
+				insert("user_majors", ("uid", "mid"), (userID, majorID['mid']))
 				# Generate and send the confirmation email
 				token = emailToken.generate_confirmation_token(email)
 				confirm_url = url_for('confirm_email', token=token, _external=True)
@@ -263,36 +274,41 @@ def register():
 		# Flash the user with message indicating invalid UPR institutional email.
 		else:
 			flash('Email address must be a valid UPR institutional email.', 'danger')
-	return render_template('register.html', form=form)
-
+	return render_template('register.html', form=form, majors=majors)
+# Will let any non logged in user to logged in to their profile
 # User login
 @app.route('/login', methods=['GET', 'POST'])
 @anonymous_user_required
 def login():
 	error = ""
 	if request.method == 'POST':
+		# Default error when visitor attempts login with invalid credentials.
 		error = "Incorrect username or password."
 		logging_with_email = False
 		validCredentials = False
+
 		# Get Form Fields
 		username = str(request.form['username']).lower()
+		# User is login with their email address
 		if username.endswith("@upr.edu"):
 			if len(username) >= 10 and len(username) <= 35:
 				logging_with_email = True
 				validCredentials = True
+		# Otherwise user wants to login with their Student Number or with an Administrative account.
 		elif username.isdigit() or username in directivaMemberList:
 			validCredentials = True
+		# If username is in the correct, now attempt to find the user in the database and compare passwords.
 		if validCredentials:
-			password_candidate = str(request.form['password'])
-			# Get user by username
+			password_candidate = request.form['password'].encode('utf-8')
+			# Get user by username. Admins can only login with their board member title. Regular users can login with email or with student ID number.
 			result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
-				# Get stored hash
+				# Decode retrieved salt and hashed password
 				uni_salt = result['salt'].decode('hex')
 				password = result['password'].decode('hex')
-				# Compare Passwords
+				# Compare passwords by combining the (entered password + salt) with the hashed password.
 				if scrypt.hash(password_candidate, uni_salt) == password:
-					# Passed
+					# Passed with matching password
 					error = ""
 					session['logged_in'] = True
 					session['username'] = result['studentFirstName']
@@ -311,25 +327,6 @@ def login():
 
 # ==== Forgot Password ====
 # https://navaspot.wordpress.com/2014/06/25/how-to-implement-forgot-password-feature-in-flask/
-class ExistingUser(object):
-	def __init__(self, message="Email doesn't exists"):
-		self.message = message
-	def __call__(self, form, field):
-		if not query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (field.data,), True):
-			raise ValidationError(self.message)
-
-class ResetPassword(FlaskForm):
-	email = EmailField('Email', validators=[validators.Required(),
-		  validators.Email(),
-		  ExistingUser(message='Email address is not available')
-		 ])
-
-class ResetPasswordSubmit(FlaskForm):
-	# TODO Add password custom validator
-	# password = PasswordField('Password', validators=custom_validators['edit_password'])
-	password = PasswordField('Password', [validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
-		validators.EqualTo('confirm', message='Passwords do not match')])
-	confirm = PasswordField('Confirm Password')
 
 def get_token(id, expiration=1800):
 		s = Serializer(app.config['SECRET_KEY'], expiration)
@@ -346,7 +343,7 @@ def verify_token(token):
 	if id:
 		return id
 	return None
-
+# If Forgot Password is pressed, it will send the user an email with a link to be able to reset his/her password
 @app.route('/reset-password', methods=['GET', 'POST'])
 @anonymous_user_required
 def forgot_password():
@@ -354,6 +351,7 @@ def forgot_password():
 	form = ResetPassword(request.form) #form
 	if form.validate_on_submit():
 		email = form.email.data
+		# Extracts corresponding user id
 		user = query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
 		if user:
 			token = get_token(user['id'])
@@ -363,7 +361,7 @@ def forgot_password():
 			emailToken.send_email(email, subject, html)
 			flash('A password reset email has been sent.', 'success')
 	return render_template('forgot_password.html', form=form)
-
+# After recieving the forgot password email, it will be redirected here to change the password
 @app.route('/users/reset/<token>', methods=['GET', 'POST'])
 @anonymous_user_required
 def reset_password(token):
@@ -373,14 +371,15 @@ def reset_password(token):
 		if password_submit_form.validate_on_submit():
 			random_salt = urandom(64)
 			new_salt = random_salt.encode('hex')
-			new_password = scrypt.hash(str(password_submit_form.password.data), random_salt).encode('hex')
+			new_password = scrypt.hash(password_submit_form.password.data.encode('utf-8'), random_salt).encode('hex')
 			
+			# Resets password where account is not admin
 			update("users", ("password", "salt"), "id=? and priviledge != 'ADMIN'", (new_password, new_salt, verified_result))
 			flash('Password updated successfully', 'success')
 			return redirect(url_for('login'))
 		return render_template("reset_password.html", form=password_submit_form)
 	return render_template('404.html')
-
+# Sends a confirmation email when a new user is created
 # Email Confirmation
 @app.route('/confirm/<token>')
 @is_logged_in
@@ -389,24 +388,21 @@ def confirm_email(token):
 		email = emailToken.confirm_token(token)
 	except:
 		flash('The confirmation link is invalid or has expired.', 'danger')
-	user = query_db("SELECT confirmation,confirmed_on FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+	# Extracts if user confirmed
+	user = query_db("SELECT confirmation FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
 	if user != None:
 		if user['confirmation']:
 			flash('Your account is already confirmed', 'success')
 		else:
-			cur = get_db().cursor()
-				
-			cur.execute("UPDATE users SET confirmation=?, confirmed_on=? WHERE email=?",(1, datetime.now(), email))
-			# Commit to DB
-			get_db().commit()
-			#Close connection
-			cur.close()
+			# Updates user with confirmation and confirmation date
+			update("users", ("confirmation","confirmed_on"), "email=?", (1, datetime.now(), email))
+
 			session['confirmation'] = 1
 			flash('You have confirmed your account. Thanks!', 'success')
 	else:
 		return render_template('404.html')
 	return redirect(url_for('index'))
-
+# Will display a warning that the profile hasnt been confirmed
 @app.route('/unconfirmed')
 @is_logged_in
 def unconfirmed():
@@ -415,7 +411,7 @@ def unconfirmed():
 		return redirect(url_for('user_profile', id=session['id']))
 	flash('Please confirm your account!', 'warning')
 	return render_template('unconfirmed.html')
-
+# If the users hasn't confirmed the email. They will be able to send a confirmation email again
 @app.route('/resend')
 @is_logged_in
 def resend_confirmation():
@@ -434,98 +430,168 @@ def logout():
 	session.clear()
 	flash('You are now logged out', 'success')
 	return redirect(url_for('login'))
-
+# If logged in as an admin, there will be a tab available that is the Admin Panel, which lets them see more information than other users can see
 @app.route('/admin')
 @is_logged_in
 @is_admin
 def adminPanel():
-	pendingMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'ACTIVE' and priviledge != 'ADMIN'")
-	return render_template('admin.html', result=pendingMembers)
-
-@app.route('/activate/<string:id>')
+	# Extracts users who are not members nor admins
+	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'MEMBER' and priviledge != 'ADMIN'")
+	return render_template('admin.html', result=anythingButMembers)
+# If the users decide to pay in person, an Admin can activate the membership in the admin panel
+@app.route('/activate/<string:id>/<string:memberType>')
 @is_logged_in
 @is_admin
-def activateMembership(id):
-	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ?", [id], True)
+def activateMembership(id, memberType):
+	# Extracts user membership status
+	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ? and priviledge !='ADMIN'", [id], True)
 	if result:
-		if result['status'] == "ACTIVE":
+		if result['status'] == "MEMBER":
 			flash(result['studentFirstName'] + " " + result['studentLastName'] + " is already an active member.", 'warning')
 			return redirect(url_for('adminPanel'))
 	else:
 		flash('User does not exist.', 'danger')
 		return redirect(url_for('adminPanel'))
-	update("users", ("status",), "id=?", ('ACTIVE', id))
+	# Sets user status to MEMBER
+	update("users", ("status",), "id=?", ('MEMBER', id))
+	# Inserts activation info into manual activations table. Membertype temporarily according to the clicked activate button.
+	insert("manual_activations", ("uid", "aid", "tdate", "membertype"), (id, session["id"], datetime.now(), memberType))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " is now a member!", "success")
 	return redirect(url_for('adminPanel'))
-
+# Admins can suspend active membership due to breaking the rules.
 @app.route('/suspend/<string:id>')
 @is_logged_in
 @is_admin
 def suspendMembership(id, studentFirstName="", studentLastName=""):
+	# Extracts user membership status
 	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ?", [id], True)
 	if result:
 		if result['status'] == "SUSPENDED":
 			flash(result['studentFirstName'] + " " + result['studentLastName'] + " is already suspended.", 'warning')
-			return redirect(url_for('adminPanel'))
+			return redirect(url_for('members'))
 	else:
 		flash('User does not exist.', 'danger')
-		return redirect(url_for('adminPanel'))
+		return redirect(url_for('members'))
+	# Sets membership status to suspended
 	update("users", ("status",), "id=?", ('SUSPENDED', id))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " has been suspended!", "danger")
-	return redirect(url_for('adminPanel'))
+	return redirect(url_for('members'))
+
+# === EVENTS === #
+# Any admin can create new events when it will be held, a description on what the event is, the location of said event.
+@app.route('/create-event',  methods=['GET', 'POST'])
+@is_logged_in
+@is_admin
+def create_event():
+	form = EventForm(request.form)
+	if request.method == 'POST' and form.validate_on_submit():
+		eventID = insert("events", ("etitle", "edate", "elocation", "edescription"), (form.title.data, form.date.data, form.location.data, form.body.data))
+		return redirect(url_for('event', eid=eventID))
+	return render_template("create_event.html", form=form)
+# Once an event is created, the admin can change the description, change the date, etc
+@app.route('/edit-event/<string:eid>',  methods=['GET', 'POST'])
+@is_logged_in
+@is_admin
+def edit_event(eid):
+	# Extracts info from event to edit
+	eventInfo = query_db("SELECT * FROM events WHERE eid=?", [eid], True)
+	if eventInfo == None:
+		return render_template("404.html")
+	form = EventForm(title=eventInfo['etitle'], date=eventInfo['edate'], location=eventInfo['elocation'], body=eventInfo['edescription'])
+	if request.method == 'POST' and form.validate_on_submit():
+		# Updates event info
+		update("events", ("etitle", "edate", "elocation", "edescription"), "eid=?", (form.title.data, form.date.data, form.location.data, form.body.data, eventInfo['eid']))
+		return redirect(url_for('event', eid=eid))
+	return render_template("edit_event.html", form=form)
+# When logged in as an admin, it will let to delete events that were created(for cancelled events, past events, etc) 
+@app.route('/delete-event/<string:eid>')
+@is_logged_in
+@is_admin
+def delete_event(eid):
+	delete("events", "eid=?", [eid])
+	return redirect(url_for('events'))
+# Display the information of an expecific event.
+@app.route('/event/<string:eid>')
+def event(eid):
+	# Extracts info of specific event
+	event = query_db("SELECT edate, etitle, elocation, edescription FROM events WHERE eid=?", [eid], True)
+	return render_template("event.html", event=event)
+# It will display a list of past and upcoming events.
+@app.route('/events')
+def events():
+	# Extracts up to 50 events
+	eventList = query_db("SELECT * FROM events ORDER BY edate LIMIT 50")
+	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
+	# Sort by most recent to least recent
+	upcoming.sort(key=lambda x: x['edate'], reverse=True)
+	upcomingIDs = [eid['eid'] for eid in upcoming]
+	past = [event for event in eventList if event['eid'] not in upcomingIDs]
+	past.reverse()
+	return render_template("events.html", upcoming=upcoming, past=past)
 
 # === PROFILE === #
+# Saves the images of past directive members. 
+def getDirectiveFolder():
+	currentdate = datetime.now()
+	directiveyear = currentdate.year if currentdate.month >= 8 else currentdate.year - 1
+	currentDirectiveFolder = "static/images/directiva{}".format(directiveyear)
+	if not path.exists(currentDirectiveFolder):
+		makedirs(currentDirectiveFolder)
+	return currentDirectiveFolder
 
-class AdminForm(FlaskForm):
-	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
-	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
-	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
-	# Add regular expression to check if endswith('@upr.edu')
-	adminEmail = EmailField('Administrative Email', [validators.Length(min=10, max=35), validators.Email()])
-	password = PasswordField('Current Password', [
-		validators.DataRequired()
-	])
-	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match')
-	])
-	confirm = PasswordField('Confirm Password')
-
-class ProfileForm(FlaskForm):
-	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
-	studentFirstName = StringField('First Name', [validators.Length(min=1,max=25)])
-	studentLastName = StringField('Last Name', [validators.Length(min=1,max=25)])
-	password = PasswordField('Current Password', [
-		validators.DataRequired()
-	])
-	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match')
-	])
-	confirm = PasswordField('Confirm Password')
-
-#Edit profile
-@app.route('/edit_profile/<string:id>', methods=['GET', 'POST'])
+# Edit profile
+@app.route('/edit-profile/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
 @is_allowed_edit
 def edit_profile(id):
-	# Get profile by id
-	result = query_db("SELECT studentFirstName,studentLastName,password,salt,email FROM users WHERE id = ?", [id], True)
+	# Gets student's name and email by id.
+	result = query_db("SELECT studentFirstName,studentLastName,email,biography FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
-	# If admin, get different form with admin email
-	if session['id'] == int(id) and session['admin']:
+	# If admin, get different form with admin email.
+	isAdminAccount = True if session['id'] == id and session['admin'] else False
+	if isAdminAccount:
+		courses = []
+		userCourseIDs = []
+		majors = []
+		userMajor = ""
 		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
-	# Else the user has the same id or the admin is in another users info
+	# Else the user has the same id or the admin is in another users info.
 	else:
-		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'])
+		# Grab all courses.
+		courses = query_db("SELECT * FROM courses")
+		# Select the courses taken by that user.
+		userCourseIDs = query_db("SELECT cid FROM courses_taken where uid=?", [id])
+		userCourseIDs = [ucID['cid'] for ucID in userCourseIDs]
+		# Create form for the regular users to display current information about that user.
+		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'])
+		# Extracts majors
+		majors = query_db("SELECT * FROM majors")
+		# Looks up a user's major
+		userMajor = query_db("SELECT mid FROM user_majors WHERE uid=?", [id], True)['mid']
 	if request.method == 'POST' and form.validate_on_submit():
-		# Admin can bypass password verification or user must match their password
-		if session['id'] != int(id) or scrypt.hash(str(form.password.data), result['salt'].decode('hex')) == result['password'].decode('hex'):
+		currentMajor = ""
+		if not isAdminAccount:
+			currentMajor = request.form['majors']
+			if query_db("SELECT * FROM majors WHERE mname=?", [currentMajor], True) == None:
+				flash('Wrong major entered.', 'danger')
+				return redirect(url_for('edit_profile', id=id))
 
-			studentFirstName = str(form.studentFirstName.data)
-			studentLastName = str(form.studentLastName.data)
+		# Extracts password and salt to validate.
+		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
+		# Admin can bypass password verification or user must match their password.
+		if session['id'] != id or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
+			studentFirstName = form.studentFirstName.data
+			studentLastName = form.studentLastName.data
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
+			if isAdminAccount:
+				fieldsToUpdate = ["studentFirstName", "studentLastName"]
+				fieldValues = [studentFirstName, studentLastName]
+			else:
+				fieldsToUpdate = ["studentFirstName", "studentLastName", "biography"]
+				fieldValues = [studentFirstName, studentLastName, form.biography.data]
 			if filename != "":
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
@@ -533,23 +599,53 @@ def edit_profile(id):
 					if path.exists(img):
 						remove(img)
 				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
+				# To store images of directives
+				if session['id'] == id and session['admin']:
+					currentDirectiveFolder = getDirectiveFolder()
+					for img in glob.glob(currentDirectiveFolder + "/" + str(id)+".*"):
+						if path.exists(img):
+							remove(img)
+					if path.exists(currentDirectiveFolder):
+						copy2(path.join(app.config['UPLOAD_FOLDER']+"/{}".format(filename)), currentDirectiveFolder)
+
+				fieldsToUpdate.append("customPicture")
+				fieldValues.append(filename)
 			if str(form.new_password.data) != "":
 				random_salt = urandom(64)
 				new_salt = random_salt.encode('hex')
-				new_password = scrypt.hash(str(form.new_password.data), random_salt).encode('hex')
-				# Update the database to include the new set parameters by the user
-				if filename != "":
-					update("users", ("studentFirstName", "studentLastName", "password", "salt", "customPicture"), "id=?", (studentFirstName, studentLastName, new_password, new_salt, filename, id))
-				else:
-					update("users", ("studentFirstName", "studentLastName", "password", "salt"), "id=?", (studentFirstName, studentLastName, new_password, new_salt, id))
-			else:
-				if filename != "":
-					update("users", ("studentFirstName", "studentLastName", "customPicture"), "id=?", (studentFirstName, studentLastName, filename, id))
-				else:
-					update("users", ("studentFirstName", "studentLastName"), "id=?", (studentFirstName, studentLastName, id))
+				new_password = scrypt.hash(form.new_password.data.encode('utf-8'), random_salt).encode('hex')
+				fieldsToUpdate.extend(["password", "salt"])
+				fieldValues.extend([new_password, new_salt])
+
+			fieldValues.append(id)
+			# Update the database to include the new set parameters by the user
+			update("users", fieldsToUpdate, "id=?", fieldValues)
+			if (session['id'] != id and session['admin']) or (session['id'] == id and not session['admin']):
+
+				majorID = query_db("SELECT mid FROM majors WHERE mname=?", [currentMajor], True)
+				# Updates the user's major
+				update("user_majors", ["mid"], "uid=?", [majorID['mid'], id])
+
+				# Grab all the checkboxes that were checked
+				course_ids = request.form.getlist("course_ids")
+				# Secure against code injecting checkboxes
+				allCourseIDs = [u'{}'.format(course['cid']) for course in courses]
+				# Intersect all ids in database to find the matching with the checkboxes
+				course_ids = list(set(course_ids).intersection(set(allCourseIDs)))
+				# Insert and delete courses taken by the user
+				for cid in userCourseIDs:
+					# User removed a class
+					if cid not in course_ids:
+						delete("courses_taken", "uid=? and cid=?", (id, cid))
+				for cid in course_ids:
+					# User added a class
+					if cid not in userCourseIDs:
+						insert("courses_taken", ("uid", "cid"), (id, cid))
+
 			# If admin is editing the profile, only change the session variables for the user
-			if session['id'] == int(id):
+			if session['id'] == id:
 				if session['admin'] and str(form.adminEmail.data) != "":
+					# Sets admin email to lowercase
 					update("users", ("email",), "id=?", (str(form.adminEmail.data).lower(), id))
 				session['username'] = studentFirstName
 				if filename != "":
@@ -558,11 +654,11 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, id=int(id))
-
+	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, id=id)
+# Loads the profile of the member that was selected
 @app.route('/user/<string:id>')
 def user_profile(id):
-	# Get post by id
+	# Get public user information by id
 	user = query_db("SELECT id,studentFirstName,studentLastName,email,biography,customPicture FROM users WHERE id = ?", (id,), True)
 	# TODO: Query the courses taken by that user
 	if user == None:
@@ -572,6 +668,7 @@ def user_profile(id):
 	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and priviledge='ADMIN'", (id,), True)
 	# If it does, redirect to the page of the user with the same email account
 	if isAdminAccount:
+		# Checks if email exists in users table from non admin user
 		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and priviledge!='ADMIN'", (isAdminAccount['email'],), True)
 		if hasSameEmail:
 			return redirect(url_for('user_profile', id=hasSameEmail['id']))
@@ -580,14 +677,14 @@ def user_profile(id):
 			return render_template('404.html')
 	# Check if the user is logged in and is their own profile page
 	if 'logged_in' in session and session['id'] == int(id):
-		if not session['admin'] and query_db("SELECT status FROM users WHERE id=? and status!='ACTIVE' and status!='SUSPENDED'", (id,), True):
+		# Checks if user is not admin nor a member nor suspended
+		if not session['admin'] and query_db("SELECT status FROM users WHERE id=? and status!='MEMBER' and status!='SUSPENDED'", (id,), True):
 			flash(Markup('You have not paid your membership. <a href="'+url_for('new_checkout')+'">Click here to pay online.</a>'), 'warning')
 		# Check if the user's account is confirmed
 		if not session['confirmation']:
 			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="'+url_for('resend_confirmation')+'">Resend</a>'), 'warning')
 		return render_template('user_profile.html', user=user)
 	return render_template('user_profile.html', user=user)
-
 
 if __name__ == '__main__':
 	app.run(debug=True)

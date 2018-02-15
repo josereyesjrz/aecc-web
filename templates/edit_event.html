@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+
+{% block body %}
+  <h1>Edit Event</h1>
+  {% from "includes/_formhelpers.html" import render_field %}
+  <form method="POST">
+    {{form.csrf_token }}
+    <div class="form-group">
+      {{ render_field(form.title, class_="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ render_field(form.date, class_="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ render_field(form.location, class_="form-control") }}
+    </div>
+    <div class="form-group">
+      {{ render_field(form.body, class_="form-control", id="editor2") }}
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+{% endblock %}
+{% block footer %}
+  <script src="{{url_for('static', filename='js/ckeditorADMIN/ckeditor.js')}}"></script>   
+   <script type="text/javascript">
+    CKEDITOR.replace('editor2')
+  </script>
+{% endblock %}

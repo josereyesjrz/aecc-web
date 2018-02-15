@@ -50,12 +50,9 @@
         <div class="form-group">
           <label for="major">Major: </label>
           <select class="form-control" name="majors", id="majors">
-            <option value = "Computer Science">Computer Science</option>
-            <option value = "Math">Math</option>
-            <option value = "Chemistry">Chemistry</option>
-            <option value = "Physics">Physics</option>
-            <option value = "Biology">Biology</option>
-            <option value = "Environmental Science">Environmental Science</option>
+            {% for major in majors %}
+            <option value = "{{major['mname']}}">{{major['mname']}}</option>
+            {% endfor %}
           </select>
         </div>
         <div class="form-group">

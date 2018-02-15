@@ -1,6 +1,5 @@
 {% extends 'layout.html' %}
 <!--Edited by Emmanuel Nieves -->
-
 {% block body %}
   <h1>Edit Profile</h1>
   {% from "includes/_formhelpers.html" import render_field %}
@@ -29,13 +28,38 @@
     <div class="form-group">
       {{render_field(form.confirm, class_="form-control")}}
     </div>
+    {% if (session.id == id and not session.admin) or (session.id != id and session.admin) %}
+      <div class="form-group">
+        <label for="major">Major: </label>
+        <select class="form-control" name="majors", id="majors">
+          {% for major in majors %}
+          {% if major['mid'] == userMajor %}
+          <option value = "{{major['mname']}}" selected="selected">{{major['mname']}}</option>
+          {% else %}
+          <option value = "{{major['mname']}}">{{major['mname']}}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <strong>Courses Taken</strong>
+      <div>
+      {% for course in courses %}
+          <tr>
+              {% if course['cid'] in userCourseIDs %}
+              <td><input type=checkbox name=course_ids value="{{ course['cid'] }}" checked></td>
+              {% else %}
+              <td><input type=checkbox name=course_ids value="{{ course['cid'] }}" unchecked></td>
+              {% endif %}
+              <td>{{ course['ccname'] }} ({{ course['ccode'] }})</td>
+          </tr>
+      {% endfor %}
+    </div>
     <div>
       <h3>Biography</h3>
-      <textarea name="editor1" id="editor1" rows="10" cols="80">
-                This is my textarea to be replaced with CKEditor.
-      </textarea>
+      {{render_field(form.biography, class_="form-control", id="editor1")}}
     </br>
     </div>
+    {% endif %}
     <div>
     <input type="submit" class="btn btn-primary" value="Submit">
     </div>
@@ -54,7 +78,7 @@
                     </div>
                 </div>
     </footer>
-     <script src="{{url_for('static', filename='js/ckeditor/ckeditor.js')}}"></script>   
+    <script src="{{url_for('static', filename='js/ckeditor/ckeditor.js')}}"></script>   
      <script type="text/javascript">
       CKEDITOR.replace('editor1')
      </script>

@@ -5,15 +5,29 @@
   <div class="checkout container">
 
     <header>
-      <h1>Hi, <br>Let's test a transaction</h1>
+      <h3>
+      Heres the Benefic getting the AECC Membership $5
+      </h3>
+       <ul>
+        <li class="list-group-item">WiFi ​Access</li>
+        <li class="list-group-item">Print ​quotas</li>
+        <!-- <li class="list-group-item">ACM ​Student ​Membership</li> -->
+        <li class="list-group-item">Mini-fridge</li>
+        <li class="list-group-item">Microwave ​oven</li>
+        <li class="list-group-item">Whiteboard ​and ​Expo ​markers</li>
+        <li class="list-group-item">Office ​Reservations</li>
+       </ul> 
+      Getting the AECC + ACM membership you will have the access to all the benefics above plus an ACM membership.
+      *Insert what exactly the benefics you get from ACM*
+      <!-- Hi, <br>Let's test a transaction -->
       <p>
-        Make a test payment with Braintree using PayPal or a card
+        <!-- Make a test payment with Braintree using PayPal or a card -->
       </p>
     </header>
 
     <form id="payment-form" method="post" action="/checkouts">
       <section>
-        <span>Amount</span>
+        <span>Membership</span>
         <div></div>
         <select name="amount" id="amount">
 
@@ -27,7 +41,7 @@
       </section>
 
       <input type="hidden" id="nonce" name="payment_method_nonce" />
-      <button class="button" type="submit" id="submit-button"><span>Test Transaction</span></button>
+      <button class="button" type="submit" id="submit-button"><span>Pay Now</span></button>
     </form>
 
   </div>

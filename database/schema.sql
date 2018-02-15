@@ -1,3 +1,9 @@
+-- this table contains each user's info,
+-- including their name, email, phone number,
+-- linkedin, facebook, and git links,
+-- their salted passwords, their AECC member
+-- privilege, their payment status, date of
+-- confirmation, profile picture and bio
 drop table if exists users;
 create table users (
 	id integer primary key autoincrement,
@@ -11,7 +17,7 @@ create table users (
 	facebook text unique,
 	password text not null,
 	salt text not null,
-	priviledge text not null default "MEMBER",
+	priviledge text not null default "USER",
 	status text not null default "PENDING",
 	confirmation boolean not null default 0,
 	confirmed_on text default null,
@@ -20,6 +26,7 @@ create table users (
 	date_created text not null default (datetime('now'))
 );
 
+-- these queries add the seven admin accounts into the users table
 insert into users (email, studentID, studentFirstName, studentLastName, password, salt, priviledge, confirmation, confirmed_on, date_created) values ("aecc.upr@gmail.com", "president", "Jeffrey", "Chan", "0f23ce5902d8c8d5717f87b3d17069eb828c18e051a7379935c06e048ae7fb79381cc0c48dfbf00a3b8848b393bfb709a2389767ce66223860fa67a53f1c936d", "1a8b09ce7664d7bbfd191a95b97fd6c2861febedfa5d6c4f30bd49e0e7e1c06e2870be3ee642c6047f291a7177f6ba07b223029d1183e6cbd9efc355cad1445b", "ADMIN", 1, datetime('now'), datetime('now'));
 insert into users (email, studentID, studentFirstName, studentLastName, password, salt, priviledge, confirmation, confirmed_on, date_created) values ("aecc.upr@gmail.com", "vicepresident", "Alejandro", "Vega", "2821700585e471a9f20de0ce72905135fc1ece59e0cab493a6aeac3f2090512e75f8673252044288fe7f988d1add678cc9e493f0a867fed65ee208cf647cfd25", "953baf7d7b0e8330259e276e89b72b5e184a046bd875ca740ef6017f52a7e8c9c63b05518a295abd0b0034d04daef0a8e5afa99ea6697178f74f4d965464cc36", "ADMIN", 1, datetime('now'), datetime('now'));
 insert into users (email, studentID, studentFirstName, studentLastName, password, salt, priviledge, confirmation, confirmed_on, date_created) values ("aecc.upr@gmail.com", "treasurer", "Angelissa", "Aviles", "4e493036f87e8247de82cf89aafbb9536c07ffd72326e154675a20d1368ca7059ddde9a960deea0a1780c4e6234f3bbabbeda8a5bf5322e6e58354f1c9f1c51c", "3b9c1f0d0aa4280478532e953e702d8dcb92a745276b70fc71e6263b52c80bc0fd38285aa57617556d886eea5902c93a920d6019a047b41798c25017dcdffc9d", "ADMIN", 1, datetime('now'), datetime('now'));
@@ -30,18 +37,20 @@ insert into users (email, studentID, studentFirstName, studentLastName, password
 
 -- TEST USERS
 insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("victor.morales12@upr.edu", "801144540", "Víctor", "Morales", "9394016059", "0f23ce5902d8c8d5717f87b3d17069eb828c18e051a7379935c06e048ae7fb79381cc0c48dfbf00a3b8848b393bfb709a2389767ce66223860fa67a53f1c936d", "1a8b09ce7664d7bbfd191a95b97fd6c2861febedfa5d6c4f30bd49e0e7e1c06e2870be3ee642c6047f291a7177f6ba07b223029d1183e6cbd9efc355cad1445b", "SUSPENDED", 1, datetime('now'), datetime('now'));
-insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("eddie.cabrera@upr.edu", "801130844", "Eddie", "Cabrera", "7877877878", "2821700585e471a9f20de0ce72905135fc1ece59e0cab493a6aeac3f2090512e75f8673252044288fe7f988d1add678cc9e493f0a867fed65ee208cf647cfd25", "953baf7d7b0e8330259e276e89b72b5e184a046bd875ca740ef6017f52a7e8c9c63b05518a295abd0b0034d04daef0a8e5afa99ea6697178f74f4d965464cc36", "ACTIVE", 1, datetime('now'), datetime('now'));
+insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("eddie.cabrera@upr.edu", "801130844", "Eddie", "Cabrera", "7877877878", "2821700585e471a9f20de0ce72905135fc1ece59e0cab493a6aeac3f2090512e75f8673252044288fe7f988d1add678cc9e493f0a867fed65ee208cf647cfd25", "953baf7d7b0e8330259e276e89b72b5e184a046bd875ca740ef6017f52a7e8c9c63b05518a295abd0b0034d04daef0a8e5afa99ea6697178f74f4d965464cc36", "MEMBER", 1, datetime('now'), datetime('now'));
 insert into users (email, studentID, studentFirstName, studentLastName, phoneNumber, password, salt, status, confirmation, confirmed_on, date_created) values ("john.wilson@upr.edu", "801000000", "John", "Wilson", "7870000000", "4e493036f87e8247de82cf89aafbb9536c07ffd72326e154675a20d1368ca7059ddde9a960deea0a1780c4e6234f3bbabbeda8a5bf5322e6e58354f1c9f1c51c", "3b9c1f0d0aa4280478532e953e702d8dcb92a745276b70fc71e6263b52c80bc0fd38285aa57617556d886eea5902c93a920d6019a047b41798c25017dcdffc9d", "PENDING", 1, datetime('now'), datetime('now'));
 
-
+-- this table contains the codification
+-- and name of CCOM and MATE courses that
+-- users can specify they've taken
 drop table if exists courses;
 create table courses (
 	cid integer primary key autoincrement,
 	ccode text not null,
 	ccname text not null unique
-	
 );
 
+-- these queries add the CCOM and MATE courses into the courses table
 insert into courses (ccode, ccname) values ("CCOM3020", "Discrete Mathematics");
 insert into courses (ccode, ccname) values ("CCOM3030", "Introduction to Computer Science");
 insert into courses (ccode, ccname) values ("CCOM3033", "Introduction to Computer Programming");
@@ -86,6 +95,19 @@ insert into courses (ccode, ccname) values ("MATE4080", "Applied Modern Algebra"
 insert into courses (ccode, ccname) values ("MATE4081", "Modern Algebra");
 insert into courses (ccode, ccname) values ("MATE5001", "Probability");
 
+drop table if exists courses_taken;
+create table courses_taken (
+	uid integer not null,
+	cid integer not null,
+	foreign key (uid) references users(id) on delete cascade,
+	foreign key (cid) references courses(cid),
+	primary key(uid,cid)
+);
+
+-- this table contains the transactions made by users
+-- when they pay for their membership. it includes the
+-- user's id, the date of transaction, the transaction token,
+-- and the type of membership the user paid for
 drop table if exists transactions;
 create table transactions (
 	tid integer primary key autoincrement,
@@ -96,6 +118,10 @@ create table transactions (
 	foreign key (uid) references users(id)
 );
 
+-- this table contains the manual activations done by admins
+-- in the case a member paid with cash. includes the user's id,
+-- the id of the admin that approved the member, the date of 
+-- the activation, and the type of membership the user paid for
 drop table if exists manual_activations;
 create table manual_activations (
 	tid integer primary key autoincrement,
@@ -107,6 +133,9 @@ create table manual_activations (
 	foreign key (aid) references users(id)
 );
 
+-- this table contains the various events the AECC will
+-- carry about. includes the event's id, the event's date
+-- and location, the event's title, and a description of the event
 drop table if exists events;
 create table events (
 	eid integer primary key autoincrement,
@@ -116,15 +145,40 @@ create table events (
 	edescription text not null
 );
 
-drop table if exists concentration;
-create table concentration (
-	conid integer primary key autoincrement,
-	conname text not null
+-- this table contains the possible majors users can specify
+-- when registering. right now it has the CCOM and MATE majors,
+-- with an Other entry for other possible majors. could be expanded
+-- if needed.
+drop table if exists majors;
+create table majors (
+	mid integer primary key autoincrement,
+	mname text not null
 );
 
-insert into concentration (conname) values ("Computer Science");
-insert into concentration (conname) values ("Mathematics");
-insert into concentration (conname) values ("Pure Mathematics");
-insert into concentration (conname) values ("Discrete Mathematics");
-insert into concentration (conname) values ("Computational Mathematics");
-insert into concentration (conname) values ("Other");
+-- this table contains majors of each user
+-- as specified when they register
+-- uid references user's id
+-- mid references major's id
+drop table if exists user_majors;
+create table user_majors (
+	uid integer not null,
+	mid integer not null,
+	foreign key (uid) references users(id) on delete cascade,
+	foreign key (mid) references majors(mid),
+	primary key(uid)
+);
+
+-- these queries add the CCOM and MATE majors into
+-- the corresponding table
+insert into majors (mname) values ("Computer Science");
+insert into majors (mname) values ("Mathematics");
+insert into majors (mname) values ("Pure Mathematics");
+insert into majors (mname) values ("Discrete Mathematics");
+insert into majors (mname) values ("Computational Mathematics");
+insert into majors (mname) values ("Biology");
+insert into majors (mname) values ("Physics");
+insert into majors (mname) values ("Chemistry");
+insert into majors (mname) values ("Interdisciplinary Studies");
+insert into majors (mname) values ("Nutrition and Dietetics");
+insert into majors (mname) values ("Environmental Science");
+insert into majors (mname) values ("Other");

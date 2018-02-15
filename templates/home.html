@@ -82,17 +82,33 @@
 								</tr>
 							</thead>
 							<tbody>
-								<tr>
-									<td>
-										...
-									</td>
-									<td>
-										...
-									</td>
-									<td>
-										...
-									</td>
-								</tr>
+								{% if currentEvents | length > 0 %}
+									{% for current in currentEvents %}
+									<tr>
+										<td>
+											{{ current.etitle }}
+										</td>
+										<td>
+											{{ current.edate }}
+										</td>
+										<td>
+											{{ current.elocation }}
+										</td>
+									</tr>
+									{% endfor %}
+								{% else %}
+									<tr>
+										<td>
+											...
+										</td>
+										<td>
+											...
+										</td>
+										<td>
+											...
+										</td>
+									</tr>
+								{% endif %}
 							</tbody>
 						</table>
 						<table class="table">
@@ -110,17 +126,33 @@
 								</tr>
 							</thead>
 							<tbody>
-								<tr>
-									<td>
-										...
-									</td>
-									<td>
-										...
-									</td>
-									<td>
-										...
-									</td>
-								</tr>
+								{% if pastEvents | length > 0 %}
+									{% for current in pastEvents %}
+									<tr>
+										<td>
+											{{ current.etitle }}
+										</td>
+										<td>
+											{{ current.edate }}
+										</td>
+										<td>
+											{{ current.elocation }}
+										</td>
+									</tr>
+									{% endfor %}
+								{% else %}
+									<tr>
+										<td>
+											...
+										</td>
+										<td>
+											...
+										</td>
+										<td>
+											...
+										</td>
+									</tr>
+								{% endif %}
 							</tbody>
 						</table>
 					</div>
