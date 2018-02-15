@@ -187,6 +187,7 @@ def index():
 @app.errorhandler(404)
 def page_not_found(e):
 	return render_template('404.html'), 404
+
 # Displays all current active members(Here will show the ones that had payed their membership)
 # Members
 @app.route('/members')
