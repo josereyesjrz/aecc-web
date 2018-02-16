@@ -546,7 +546,7 @@ def getDirectiveFolder():
 @is_allowed_edit
 def edit_profile(id):
 	# Gets student's name and email by id.
-	result = query_db("SELECT studentFirstName,studentLastName,email,biography FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,email,biography,facebook,gituser,linkedin FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
@@ -566,7 +566,7 @@ def edit_profile(id):
 		userCourseIDs = query_db("SELECT cid FROM courses_taken where uid=?", [id])
 		userCourseIDs = [ucID['cid'] for ucID in userCourseIDs]
 		# Create form for the regular users to display current information about that user.
-		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'])
+		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'], GitHub=result['gituser'], Facebook=result['facebook'], LinkedIn=result['linkedin'])
 		# Extracts majors
 		majors = query_db("SELECT * FROM majors")
 		# Looks up a user's major

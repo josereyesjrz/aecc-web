@@ -51,7 +51,12 @@ class ProfileForm(FlaskForm):
 		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
+	Facebook = StringField('Facebook', validators=[validators.Length(max=50)])
+	LinkedIn = StringField('LinkedIn', validators=[validators.Length(max=50)])
+	GitHub = StringField('GitHub', validators=[validators.Length(max=50)])
+
 	biography = TextAreaField('Biography', validators=[validators.Length(max=5000)])
+
 
 class EventForm(FlaskForm):
 	# Accept only digits for Student Number

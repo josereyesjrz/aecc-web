@@ -23,9 +23,6 @@
 {% block footer %}
   <script src="{{url_for('static', filename='js/ckeditorADMIN/ckeditor.js')}}"></script>   
    <script type="text/javascript"> 
-    var roxyFileman = '/fileman/index.html'; 
-   CKEDITOR.replace( 'editor2',{filebrowserBrowseUrl:roxyFileman,
-                                filebrowserImageBrowseUrl:roxyFileman+'?type=image',
-                                removeDialogTabs: 'link:upload;image:upload'}); 
+   CKEDITOR.replace('editor2'); 
  </script>
 {% endblock %}

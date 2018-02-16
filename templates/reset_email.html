@@ -1,21 +1,7 @@
-{% extends 'layout.html' %}
-
-<!-- Edited by Anthony Rios -->
-
-{% block body %}
-<div class="container-fluid">
-	<div class="row">
-		<div class="col-sm-4 col-lg-4 col-md-4 col-xs-4"></div>
-		<div class="col-sm-4 col-lg-4 col-md-4 col-xs-4">
-			<div class="jumbotron text-center">
-				<h2>Alguien ha pedido que su contraseña sea reiniciada:</h2>
-				<p class="lead">Si fue usted, oprima el enlace de abajo para cambiar su contraseña a una nueva</p>
-				<a href="{{ confirm_url }}" class="btn btn-success btn-lg">Confirm</a>
-				<br>
-				<img src="https://lh3.googleusercontent.com/-tdPNFO-8jaM/Ui5mT0nBXuI/AAAAAAAAAGw/lU_HBXqgreA/w530-h465-n/aecc2008vector.png" alt="AECC Logo" height="250" width="250"/> 
-				<p>- La Directiva</p>
-			</div>
-		</div>
-	</div>
-</div>
-{% block body %}
+<!-- Forgot Password Email -->
+<h2>Alguien ha pedido que su contraseña sea reiniciada:</h2>
+<p>Si fue usted, opirma el enlace de abajo para cambiar su contraseña a una nueva.</p>
+<a href="{{ confirm_url }}" class="btn btn-success btn-lg">Confirm</a>
+<br>
+<img src="https://lh3.googleusercontent.com/-tdPNFO-8jaM/Ui5mT0nBXuI/AAAAAAAAAGw/lU_HBXqgreA/w530-h465-n/aecc2008vector.png" alt="AECC Logo" height="150" width="150"/> 
+<p>- La Directiva</p>
