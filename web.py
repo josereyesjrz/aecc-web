@@ -222,7 +222,6 @@ def register():
 			studentID = str(form.studentID.data)
 			phoneNumber = str(form.phoneNumber.data)
 			currentMajor = str(request.form['majors'])
-			print currentMajor
 			# Check that student number, email and phone number are unique
 			if query_db("SELECT id FROM users WHERE studentID = ?", [studentID]):
 				flash('Student Number already taken.', 'danger')
