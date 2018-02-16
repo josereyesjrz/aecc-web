@@ -194,10 +194,12 @@ def page_not_found(e):
 def members():
 	# Extracts active members from db
 	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'MEMBER'")
-	#"SELECT memberType FROM transactions INNER JOIN manual_activations WHERE uid=id"
-
-	
-	return render_template('members.html', results=results)
+	memberType = []
+	if 'logged_in' in session and session['admin']:
+		allUserIDs = "SELECT id FROM users WHERE status = 'MEMBER'"
+		memberType = query_db("SELECT memberType,tdate FROM transactions WHERE uid=? UNION ALL SELECT memberType,tdate FROM manual_activations WHERE uid=? ORDER BY tdate DESC LIMIT 1", (allUserIDs, allUserIDs))
+		print memberType
+	return render_template('members.html', results=results, memberType=memberType)
 # In the navbar, theres an about tab. Here it will display the current members of the directive and their mission and vision ad what is the AECC
 # Members
 @app.route('/about')
@@ -220,7 +222,6 @@ def register():
 			studentID = str(form.studentID.data)
 			phoneNumber = str(form.phoneNumber.data)
 			currentMajor = str(request.form['majors'])
-			print currentMajor
 			# Check that student number, email and phone number are unique
 			if query_db("SELECT id FROM users WHERE studentID = ?", [studentID]):
 				flash('Student Number already taken.', 'danger')

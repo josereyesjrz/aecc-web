@@ -3,7 +3,6 @@ from flask_wtf.file import FileField, FileAllowed, FileRequired
 from wtforms import StringField, TextAreaField, BooleanField, PasswordField, validators
 from wtforms.fields.html5 import EmailField
 from db import query_db
-import re
 
 # Register Form Class
 class RegisterForm(FlaskForm):
@@ -14,14 +13,11 @@ class RegisterForm(FlaskForm):
 	studentFirstName = StringField('First Name', validators=[validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	studentLastName = StringField('Last Name', validators=[validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	phoneNumber = StringField('Phone Number', validators=[validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
-	# TODO Add validators: At least 1 number, at least 1 uppercase
+	# Password must have at least 8 characters long, at least 1 number, at least 1 uppercase
 	password = PasswordField('Password', validators=[
 		validators.DataRequired(), validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
 		validators.EqualTo('confirm', message='Passwords do not match'),
-		# validators.Regexp("[A-Z]", message="Password must contain at least 1 uppercase letter."),
-		# validators.Regexp("[\d]", message="Password must contain at least 1 number."),
-		validators.Regexp("[^A-Za-z0-9]", message="Password must contain at least 1 symbol.")
-	])
+		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")])
 	confirm = PasswordField('Confirm Password')
 	# Check to redirect to transaction payment
 	payNow = BooleanField("Pay Membership now?")
@@ -36,8 +32,9 @@ class AdminForm(FlaskForm):
 	password = PasswordField('Current Password', [
 		validators.DataRequired(message='Enter your password to make any changes.')
 	])
-	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match')
+	new_password = PasswordField('New Password', validators=[
+		validators.EqualTo('confirm', message='Passwords do not match'), 
+		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
 
@@ -50,7 +47,8 @@ class ProfileForm(FlaskForm):
 		validators.DataRequired(message='Enter your password to make any changes.')
 	])
 	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match')
+		validators.EqualTo('confirm', message='Passwords do not match'),
+		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
 	biography = TextAreaField('Biography', validators=[validators.Length(max=5000)])
@@ -83,5 +81,6 @@ class ResetPasswordSubmit(FlaskForm):
 	# password = PasswordField('Password', validators=custom_validators['edit_password'])
 	password = PasswordField('Password', validators=[validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
 		validators.EqualTo('confirm', message='Passwords do not match'), validators.Regexp("[A-Z]", message="Password must contain at least 1 uppercase letter."),
-		validators.Regexp("[\d]", message="Password must contain at least 1 number."), validators.Regexp("[^A-Za-z0-9]", message="Password must contain at least 1 symbol.")])
+		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")
+		])
 	confirm = PasswordField('Confirm Password')
