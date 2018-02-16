@@ -6,19 +6,19 @@
 
     <header>
       <h3>
-      Heres the Benefic getting the AECC Membership $5
+      Benefits from having the $5 AECC Membership: 
       </h3>
        <ul>
-        <li class="list-group-item">WiFi ​Access</li>
-        <li class="list-group-item">Print ​quotas</li>
-        <!-- <li class="list-group-item">ACM ​Student ​Membership</li> -->
-        <li class="list-group-item">Mini-fridge</li>
-        <li class="list-group-item">Microwave ​oven</li>
-        <li class="list-group-item">Whiteboard ​and ​Expo ​markers</li>
-        <li class="list-group-item">Office ​Reservations</li>
+        <li>WiFi ​Access</li>
+        <li>Print ​quotas</li>
+        <li>ACM ​Student ​Membership</li>
+        <li>Mini-fridge</li>
+        <li>Microwave ​oven</li>
+        <li>Whiteboard ​and ​Expo ​markers</li>
+        <li>Office ​Reservations</li>
        </ul> 
-      Getting the AECC + ACM membership you will have the access to all the benefics above plus an ACM membership.
-      *Insert what exactly the benefics you get from ACM*
+      With the AECC + ACM membership, you will have the access to all the benefits above, plus an ACM membership.
+      <!-- Insert what exactly the benefits you get from ACM* -->
       <!-- Hi, <br>Let's test a transaction -->
       <p>
         <!-- Make a test payment with Braintree using PayPal or a card -->
@@ -26,19 +26,20 @@
     </header>
 
     <form id="payment-form" method="post" action="/checkouts">
-      <section>
+      <div class="row">
+        <div class="col-xs-4 col-sm-4 col-md-4 col-lg-4">
         <span>Membership</span>
-        <div></div>
-        <select name="amount" id="amount">
+        <select class="form-control" name="amount" id="amount">
 
         <option value="5">AECC $5</option>
         <option value="20">AECC + ACM $20</option>
         </select>
 
         <div class="bt-drop-in-wrapper">
-          <div id="bt-dropin"></div>
+          <div id="bt-dropin"></div>  
+            </div>
         </div>
-      </section>
+      </div>
 
       <input type="hidden" id="nonce" name="payment_method_nonce" />
       <button class="button" type="submit" id="submit-button"><span>Pay Now</span></button>

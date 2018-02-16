@@ -4,6 +4,10 @@
   <h1>Admin Panel</h1>
   <h3>Welcome, {{ session['username']}}.</h3>
   <div class="container-fluid">
+    <div class="row">
+        <h3><a href="{{url_for('create_event')}}">Create Event</a></h3>
+      </div>
+    <div class="row">
   	<div class="table-responsive" id="pending">
       <table class="table">
       <thead>
@@ -45,6 +49,7 @@
   {% endfor %}
       </tbody>
       </table>
+      </div>
 	  </div>
 	</div>
 {% endblock %}
