@@ -82,13 +82,13 @@ def show_checkout(transaction_id):
 		# Check to see if transaction was already in the database to avoid the user from
 		# attempting to gain membership again without paying.
 		if (query_db("SELECT * FROM transactions WHERE token=?", (transaction_id,), True) == None):
-			# Change the user status to MEMBER to become an official member.
-			update("users", ("status",), "id=?", ("MEMBER", session['id']))
 			memberType = "ACM" if transaction.amount == 20 else "AECC"
+			# Change the user status to MEMBER to become an official member.
+			update("users", ("status","memberType"), "id=?", ("MEMBER", memberType, session['id']))
 			# Insert the newly processed transaction and store the memberType according
 			# to the amount paid by the user. 20 for ACM, 5 for AECC
 
-			insert("transactions", ("uid", "tdate", "token", "membertype"), (session['id'], transaction.created_at, transaction_id, memberType))
+			insert("transactions", ("uid", "tdate", "token"), (session['id'], transaction.created_at, transaction_id))
 			# Extracts email and student's name for receipt email
 			user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
 			html = render_template('receipt.html', transaction = transaction, membertype = memberType, user = user)
@@ -193,13 +193,12 @@ def page_not_found(e):
 @app.route('/members')
 def members():
 	# Extracts active members from db
-	results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'MEMBER'")
-	memberType = []
+	# For Admin accounts show the member types.
 	if 'logged_in' in session and session['admin']:
-		allUserIDs = "SELECT id FROM users WHERE status = 'MEMBER'"
-		memberType = query_db("SELECT memberType,tdate FROM transactions WHERE uid=? UNION ALL SELECT memberType,tdate FROM manual_activations WHERE uid=? ORDER BY tdate DESC LIMIT 1", (allUserIDs, allUserIDs))
-		print memberType
-	return render_template('members.html', results=results, memberType=memberType)
+		results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,memberType FROM users WHERE status = 'MEMBER'")
+	else:
+		results = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture FROM users WHERE status = 'MEMBER'")
+	return render_template('members.html', results=results)
 # In the navbar, theres an about tab. Here it will display the current members of the directive and their mission and vision ad what is the AECC
 # Members
 @app.route('/about')
@@ -387,21 +386,20 @@ def reset_password(token):
 def confirm_email(token):
 	try:
 		email = emailToken.confirm_token(token)
+		# Extracts if user confirmed
+		user = query_db("SELECT confirmation FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+		if user != None:
+			if user['confirmation']:
+				flash('Your account is already confirmed', 'success')
+			else:
+				# Updates user with confirmation and confirmation date
+				update("users", ("confirmation",), "email=?", (1, email))
+				session['confirmation'] = 1
+				flash('You have confirmed your account. Thanks!', 'success')
+		else:
+			return render_template('404.html')
 	except:
 		flash('The confirmation link is invalid or has expired.', 'danger')
-	# Extracts if user confirmed
-	user = query_db("SELECT confirmation FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
-	if user != None:
-		if user['confirmation']:
-			flash('Your account is already confirmed', 'success')
-		else:
-			# Updates user with confirmation and confirmation date
-			update("users", ("confirmation","confirmed_on"), "email=?", (1, datetime.now(), email))
-
-			session['confirmation'] = 1
-			flash('You have confirmed your account. Thanks!', 'success')
-	else:
-		return render_template('404.html')
 	return redirect(url_for('index'))
 # Will display a warning that the profile hasnt been confirmed
 @app.route('/unconfirmed')
@@ -439,6 +437,7 @@ def adminPanel():
 	# Extracts users who are not members nor admins
 	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'MEMBER' and priviledge != 'ADMIN'")
 	return render_template('admin.html', result=anythingButMembers)
+
 # If the users decide to pay in person, an Admin can activate the membership in the admin panel
 @app.route('/activate/<string:id>/<string:memberType>')
 @is_logged_in
@@ -454,7 +453,7 @@ def activateMembership(id, memberType):
 		flash('User does not exist.', 'danger')
 		return redirect(url_for('adminPanel'))
 	# Sets user status to MEMBER
-	update("users", ("status",), "id=?", ('MEMBER', id))
+	update("users", ("status","memberType"), "id=?", ("MEMBER", memberType, id))
 	# Inserts activation info into manual activations table. Membertype temporarily according to the clicked activate button.
 	insert("manual_activations", ("uid", "aid", "tdate", "membertype"), (id, session["id"], datetime.now(), memberType))
 	flash(result['studentFirstName'] + " " + result['studentLastName'] + " is now a member!", "success")
@@ -578,21 +577,42 @@ def edit_profile(id):
 			if query_db("SELECT * FROM majors WHERE mname=?", [currentMajor], True) == None:
 				flash('Wrong major entered.', 'danger')
 				return redirect(url_for('edit_profile', id=id))
-
+			github = form.GitHub.data.replace(' ', '')
+			facebook = form.Facebook.data.replace(' ', '')
+			linkedin = form.LinkedIn.data.replace(' ', '')
+			for x in ('https://github.com/','github.com/'):
+				if github.endswith("/"):
+					github = github[:-1]
+				if github.startswith(x):
+				 	github = github[len(x):]
+				 	break
+			for x in ('https://facebook.com/','facebook.com/'):
+				if facebook.endswith("/"):
+					facebook = facebook[:-1]
+				if facebook.startswith(x):
+				 	facebook = facebook[len(x):]
+					break
+			for x in ('https://www.linkedin.com/in/','www.linkedin.com/in/', 'linkedin.com/in/'):
+				if linkedin.endswith("/"):
+					linkedin = linkedin[:-1]
+				if linkedin.startswith(x):
+					linkedin = linkedin[len(x):]
+				 	break
 		# Extracts password and salt to validate.
 		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
 		# Admin can bypass password verification or user must match their password.
 		if session['id'] != id or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 			studentFirstName = form.studentFirstName.data
 			studentLastName = form.studentLastName.data
+			
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
 			if isAdminAccount:
 				fieldsToUpdate = ["studentFirstName", "studentLastName"]
 				fieldValues = [studentFirstName, studentLastName]
 			else:
-				fieldsToUpdate = ["studentFirstName", "studentLastName", "biography"]
-				fieldValues = [studentFirstName, studentLastName, form.biography.data]
+				fieldsToUpdate = ["studentFirstName", "studentLastName", "biography", "gituser", "facebook", "linkedin"]
+				fieldValues = [studentFirstName, studentLastName, form.biography.data, github, facebook, linkedin]
 			if filename != "":
 				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])

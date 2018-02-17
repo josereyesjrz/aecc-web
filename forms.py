@@ -34,7 +34,7 @@ class AdminForm(FlaskForm):
 	])
 	new_password = PasswordField('New Password', validators=[
 		validators.EqualTo('confirm', message='Passwords do not match'), 
-		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")
+		validators.Regexp("(^$)|(\d.*[A-Z]|[A-Z].*\d)", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
 
@@ -48,12 +48,12 @@ class ProfileForm(FlaskForm):
 	])
 	new_password = PasswordField('New Password', [
 		validators.EqualTo('confirm', message='Passwords do not match'),
-		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")
+		validators.Regexp("(^$)|(\d.*[A-Z]|[A-Z].*\d)", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
 	Facebook = StringField('Facebook', validators=[validators.Length(max=50)])
 	LinkedIn = StringField('LinkedIn', validators=[validators.Length(max=50)])
-	GitHub = StringField('GitHub', validators=[validators.Length(max=50)])
+	GitHub = StringField('GitHub', validators=[validators.Length(max=75)])
 
 	biography = TextAreaField('Biography', validators=[validators.Length(max=5000)])
 

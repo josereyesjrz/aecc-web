@@ -15,12 +15,8 @@
     	{% endif %}
       	<a href="{{ url_for('user_profile', id=result['id']) }}"><strong>{{result['studentFirstName'] + " " + result['studentLastName']}}</strong></a>
       {% if session.admin %}
-      {% for type in memberType %}
-        {% if type['uid'] == result['id'] %}
-        type['memberType']
-        {% endif %}
-      {% endfor %}
-      <a href="{{ url_for('suspendMembership', id=result['id']) }}">(Suspend)</a>
+        ({{ result['memberType'] }})
+        <a href="{{ url_for('suspendMembership', id=result['id']) }}">(Suspend)</a>
       {% endif %}
       </ul>
       {% endfor %}
