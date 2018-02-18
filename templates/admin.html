@@ -4,7 +4,84 @@
   <h1>Admin Panel</h1>
   <h3>Welcome, {{ session['username']}}.</h3>
   <div class="container-fluid">
-  	<div class="table-responsive" id="pending">
+    <ul class="nav nav-pills" style="padding-bottom: 5%">
+      <li class="active"><a href="{{url_for('create_event')}}">Create Event</a></li>
+    </ul>
+    <div class="row">
+      <div class="col-sm-6 col-lg-6 col-md-6 col-xs-12">
+        <div class="table-responsive" id="events">
+      <table class="table">
+        <h3>Upcoming Events</h3>
+      <thead>
+        <tr>
+          <th>
+            Date
+          </th>
+          <th>
+            Event
+          </th>
+          <th>
+            
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in upcoming %}
+        <tr>
+        <td>
+          {{ event.edate }} 
+        </td>
+        <td>
+          <a href="{{ url_for('event', eid=event.eid) }}">{{event.etitle}}</a>
+        </td>
+        <td>
+          <a href="{{ url_for('delete_event', eid=event.eid) }}">(delete)</a>
+        </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+      </div>
+	  </div>
+    <div class="col-sm-6 col-lg-6 col-md-6 col-xs-12">
+        <div class="table-responsive" id="events">
+      <table class="table">
+        <h3>Past Events</h3>
+      <thead>
+        <tr>
+          <th>
+            Date
+          </th>
+          <th>
+            Event
+          </th>
+          <th>
+            
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for event in past %}
+        <tr>
+        <td>
+          {{ event.edate }} 
+        </td>
+        <td>
+          <a href="{{ url_for('event', eid=event.eid) }}">{{event.etitle}}</a>
+        </td>
+        <td>
+          <a href="{{ url_for('delete_event', eid=event.eid) }}">(delete)</a>
+        </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+      </div>
+    </div>
+	</div>
+  <div class="row">
+    <div class="col-sm-6 col-lg-6 col-md-6 col-xs-12">
+    <div class="table-responsive" id="pending">
       <table class="table">
       <thead>
         <tr>
@@ -21,19 +98,19 @@
       </thead>
       <tbody>
   {% for pending in result %}
-  	   <tr>
+       <tr>
         <td>
-  	{% if pending['customPicture'] == "FALSE" %}
-  		<img src="{{ pending['email'] | gravatar }}" height="25" width="25">
-	{% else %}
-		<img src="{{ url_for('static', filename='uploads/'+pending['customPicture']) }}" height="25" width="25">
-	{% endif %}
+    {% if pending['customPicture'] == "FALSE" %}
+      <img src="{{ pending['email'] | gravatar }}" height="25" width="25">
+  {% else %}
+    <img src="{{ url_for('static', filename='uploads/'+pending['customPicture']) }}" height="25" width="25">
+  {% endif %}
         </td>
         <td>
-	<strong><a href="{{ url_for('user_profile', id=pending['id']) }}">{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</a></strong> 
+  <strong><a href="{{ url_for('user_profile', id=pending['id']) }}">{{ pending['studentFirstName'] + " " + pending['studentLastName']}}</a></strong> 
         </td>
         <td>
-	[{{ pending['status'] }}] 
+  [{{ pending['status'] }}] 
         </td>
         <td>
           <a href="{{ url_for('activateMembership', id=pending['id'], memberType='AECC') }}">(Activate AECC)</a>
@@ -45,6 +122,8 @@
   {% endfor %}
       </tbody>
       </table>
-	  </div>
-	</div>
+        </div>
+      </div>
+  </div>
+</div>
 {% endblock %}

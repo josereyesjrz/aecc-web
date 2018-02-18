@@ -43,6 +43,7 @@
       </div>
       <strong>Courses Taken</strong>
       <div>
+        <table>
       {% for course in courses %}
           <tr>
               {% if course['cid'] in userCourseIDs %}
@@ -53,9 +54,10 @@
               <td>{{ course['ccname'] }} ({{ course['ccode'] }})</td>
           </tr>
       {% endfor %}
+        </table>
+      </br>
     </div>
     <div>
-      <h3>Biography</h3>
       {{render_field(form.biography, class_="form-control", id="editor1")}}
     </br>
     </div>
