@@ -204,8 +204,8 @@ def members():
 @app.route('/about')
 def about():
 	directiveFolder = getDirectiveFolder().replace('static/', '')
-	# Extracts admin info from db
-	directivaMembers = query_db("SELECT studentID,studentFirstName,studentLastName,customPicture FROM users WHERE priviledge = 'ADMIN'")
+	# Extracts admin info from db based on another user non-admin account with the same email.
+	directivaMembers = query_db("SELECT u2.id, u2.studentFirstName, u2.studentLastName, u2.gituser, u2.facebook, u2.linkedin, u1.customPicture, u1.studentID FROM users as u1, users as u2 WHERE u1.priviledge = 'ADMIN' and u1.email = u2.email and u2.priviledge!='ADMIN'")
 	return render_template('about.html', directiva=directivaMembers, directiveFolder=directiveFolder)
 # Will let a user that doesnt have an account create a new account
 # User Register
@@ -436,7 +436,15 @@ def logout():
 def adminPanel():
 	# Extracts users who are not members nor admins
 	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'MEMBER' and priviledge != 'ADMIN'")
-	return render_template('admin.html', result=anythingButMembers)
+	# Extracts up to 50 events
+	eventList = query_db("SELECT * FROM events ORDER BY edate LIMIT 50")
+	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
+	# Sort by most recent to least recent
+	upcoming.sort(key=lambda x: x['edate'], reverse=True)
+	upcomingIDs = [eid['eid'] for eid in upcoming]
+	past = [event for event in eventList if event['eid'] not in upcomingIDs]
+	past.reverse()
+	return render_template('admin.html', result=anythingButMembers, upcoming=upcoming, past=past)
 
 # If the users decide to pay in person, an Admin can activate the membership in the admin panel
 @app.route('/activate/<string:id>/<string:memberType>')
@@ -545,18 +553,18 @@ def getDirectiveFolder():
 @is_allowed_edit
 def edit_profile(id):
 	# Gets student's name and email by id.
-	result = query_db("SELECT studentFirstName,studentLastName,email,biography,facebook,gituser,linkedin FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,email,biography,facebook,gituser,linkedin,priviledge FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# If admin, get different form with admin email.
-	isAdminAccount = True if session['id'] == id and session['admin'] else False
+	isAdminAccount = True if result['priviledge'] == 'ADMIN' else False
 	if isAdminAccount:
 		courses = []
 		userCourseIDs = []
 		majors = []
 		userMajor = ""
-		form = AdminForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], adminEmail=result['email'])
+		form = AdminForm(adminEmail=result['email'])
 	# Else the user has the same id or the admin is in another users info.
 	else:
 		# Grab all courses.
@@ -580,24 +588,33 @@ def edit_profile(id):
 			github = form.GitHub.data.replace(' ', '')
 			facebook = form.Facebook.data.replace(' ', '')
 			linkedin = form.LinkedIn.data.replace(' ', '')
-			for x in ('https://github.com/','github.com/'):
-				if github.endswith("/"):
-					github = github[:-1]
-				if github.startswith(x):
-				 	github = github[len(x):]
-				 	break
-			for x in ('https://facebook.com/','facebook.com/'):
-				if facebook.endswith("/"):
-					facebook = facebook[:-1]
-				if facebook.startswith(x):
-				 	facebook = facebook[len(x):]
-					break
-			for x in ('https://www.linkedin.com/in/','www.linkedin.com/in/', 'linkedin.com/in/'):
-				if linkedin.endswith("/"):
-					linkedin = linkedin[:-1]
-				if linkedin.startswith(x):
-					linkedin = linkedin[len(x):]
-				 	break
+			if github == "":
+				github = None
+			else:
+				for x in ('https://github.com/','github.com/'):
+					if github.endswith("/"):
+						github = github[:-1]
+					if github.startswith(x):
+					 	github = github[len(x):]
+					 	break
+			if facebook == "":
+				facebook = None
+			else:
+				for x in ('https://facebook.com/','facebook.com/'):
+					if facebook.endswith("/"):
+						facebook = facebook[:-1]
+					if facebook.startswith(x):
+					 	facebook = facebook[len(x):]
+						break
+			if linkedin == "":
+				linkedin = None
+			else:
+				for x in ('https://www.linkedin.com/in/','www.linkedin.com/in/', 'linkedin.com/in/'):
+					if linkedin.endswith("/"):
+						linkedin = linkedin[:-1]
+					if linkedin.startswith(x):
+						linkedin = linkedin[len(x):]
+					 	break
 		# Extracts password and salt to validate.
 		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
 		# Admin can bypass password verification or user must match their password.
@@ -608,8 +625,8 @@ def edit_profile(id):
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
 			if isAdminAccount:
-				fieldsToUpdate = ["studentFirstName", "studentLastName"]
-				fieldValues = [studentFirstName, studentLastName]
+				fieldsToUpdate = ["email"]
+				fieldValues = [form.adminEmail.data]
 			else:
 				fieldsToUpdate = ["studentFirstName", "studentLastName", "biography", "gituser", "facebook", "linkedin"]
 				fieldValues = [studentFirstName, studentLastName, form.biography.data, github, facebook, linkedin]
@@ -675,7 +692,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, id=id)
+	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, priviledge=isAdminAccount, id=id)
 # Loads the profile of the member that was selected
 @app.route('/user/<string:id>')
 def user_profile(id):

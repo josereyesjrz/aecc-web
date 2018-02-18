@@ -8,10 +8,12 @@ from db import query_db
 class RegisterForm(FlaskForm):
 	# Accept only digits for Student Number
 	studentID = StringField('Student Number', validators=[validators.Regexp("\d{9}",message = "Enter a valid Student Number"),validators.DataRequired(), validators.Length(min=9, max=9)])
-
+	# Implemented to validate email input
 	email = EmailField('Email', validators=[validators.DataRequired(), validators.Length(min=10, max=35), validators.Email()])
+	# First and last name of the student
 	studentFirstName = StringField('First Name', validators=[validators.Regexp("\D",message = "Enter a valid First Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
 	studentLastName = StringField('Last Name', validators=[validators.Regexp("\D",message = "Enter a valid Last Name"),validators.DataRequired(), validators.Length(min=1,max=25)])	
+	# Required for AECC.
 	phoneNumber = StringField('Phone Number', validators=[validators.Regexp("\d{10}",message = "Enter Phone Number"),validators.DataRequired(), validators.Length(min=10, max=10)])
 	# Password must have at least 8 characters long, at least 1 number, at least 1 uppercase
 	password = PasswordField('Password', validators=[
@@ -19,17 +21,15 @@ class RegisterForm(FlaskForm):
 		validators.EqualTo('confirm', message='Passwords do not match'),
 		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")])
 	confirm = PasswordField('Confirm Password')
-	# Check to redirect to transaction payment
+	# Check to redirect to transaction payment, uncheck to redirect to unconfirmed page.
 	payNow = BooleanField("Pay Membership now?")
 
-# Admin Form for when an admin edits a profile
+# Admin Form for when an admin edits their profile
 class AdminForm(FlaskForm):
-	uploadFile = FileField("Upload Avatar", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
-	studentFirstName = StringField('First Name', validators=[validators.Length(min=1,max=25)])
-	studentLastName = StringField('Last Name', validators=[validators.Length(min=1,max=25)])
+	uploadFile = FileField("Image to display in About page.", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
 	# Add regular expression to check if endswith('@upr.edu')
-	adminEmail = EmailField('Administrative Email', validators=[validators.Length(min=10, max=35), validators.Email()])
-	password = PasswordField('Current Password', [
+	adminEmail = EmailField('Email that connects to your AECC account.', validators=[validators.Length(min=10, max=35), validators.Email()])
+	password = PasswordField('Current Password (Enter to make any changes)', [
 		validators.DataRequired(message='Enter your password to make any changes.')
 	])
 	new_password = PasswordField('New Password', validators=[
@@ -59,7 +59,6 @@ class ProfileForm(FlaskForm):
 
 
 class EventForm(FlaskForm):
-	# Accept only digits for Student Number
 	title = StringField('Event Title', validators=[validators.DataRequired(), validators.Length(max=100)])
 	date = StringField('Date (YYYY-MM-DD)', validators=[validators.DataRequired(), validators.Length(max=100), validators.Regexp("([2]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))",message = "Wrong date format.")])	
 	location = StringField('Location', validators=[validators.DataRequired(), validators.Length(max=100)])	
@@ -82,8 +81,6 @@ class ResetPassword(FlaskForm):
 		 ])
 
 class ResetPasswordSubmit(FlaskForm):
-	# TODO Add password custom validator
-	# password = PasswordField('Password', validators=custom_validators['edit_password'])
 	password = PasswordField('Password', validators=[validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
 		validators.EqualTo('confirm', message='Passwords do not match'), validators.Regexp("[A-Z]", message="Password must contain at least 1 uppercase letter."),
 		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")

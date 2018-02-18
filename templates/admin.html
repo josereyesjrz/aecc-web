@@ -3,8 +3,10 @@
 {% block body %}
   <h1>Admin Panel</h1>
   <h3>Welcome, {{ session['username']}}.</h3>
+  
   <div class="container-fluid">
     <ul class="nav nav-pills" style="padding-bottom: 5%">
+      <li class="list-group-item-success"><a href="{{url_for('edit_profile', id=session.id)}}">Edit Profile</a></li>
       <li class="active"><a href="{{url_for('create_event')}}">Create Event</a></li>
     </ul>
     <div class="row">
@@ -35,7 +37,10 @@
           <a href="{{ url_for('event', eid=event.eid) }}">{{event.etitle}}</a>
         </td>
         <td>
-          <a href="{{ url_for('delete_event', eid=event.eid) }}">(delete)</a>
+          <a href="{{ url_for('edit_event', eid=event.eid) }}">(Edit)</a>
+        </td>
+        <td>
+          <a href="{{ url_for('delete_event', eid=event.eid) }}">(Delete)</a>
         </td>
         </tr>
         {% endfor %}
@@ -70,7 +75,10 @@
           <a href="{{ url_for('event', eid=event.eid) }}">{{event.etitle}}</a>
         </td>
         <td>
-          <a href="{{ url_for('delete_event', eid=event.eid) }}">(delete)</a>
+          <a href="{{ url_for('edit_event', eid=event.eid) }}">(Edit)</a>
+        </td>
+        <td>
+          <a href="{{ url_for('delete_event', eid=event.eid) }}">(Delete)</a>
         </td>
         </tr>
         {% endfor %}
