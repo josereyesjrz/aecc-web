@@ -7,6 +7,32 @@
   <div class="container-fluid">
     <ul class="nav nav-pills" style="padding-bottom: 5%">
       <li class="list-group-item-success"><a href="{{url_for('edit_profile', id=session.id)}}">Edit Profile</a></li>
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+      <div class="modal fade" id="confirm-reset" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                    <h4 class="modal-title" id="myModalLabel">Membership Reset</h4>
+                </div>
+                <div class="modal-body">
+                    <b><i class="title"></i><p>You are about to reset the memberships of all current members of the AECC.</b> This procedure is irreversible.</p>
+                    <p>Do you want to proceed?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button type="submit" id="reset-members" class="btn btn-danger">Confirm Reset</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <button class="btn btn-primary" data-record-id="54" data-record-title="Membership Reset" data-toggle="modal" data-target="#confirm-reset">Reset ALL Memberships
+    </button>
+    <script>
+        $('#reset-members').click(function() {
+            window.location.href = "{{url_for('resetMemberships')}}"
+        });
+    </script>
       <li class="active"><a href="{{url_for('create_event')}}">Create Event</a></li>
     </ul>
     <div class="row">

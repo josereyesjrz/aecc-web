@@ -436,7 +436,7 @@ def logout():
 	flash('You are now logged out', 'success')
 	return redirect(url_for('login'))
 # If logged in as an admin, there will be a tab available that is the Admin Panel, which lets them see more information than other users can see
-@app.route('/admin')
+@app.route('/admin', methods=["GET", "POST"])
 @is_logged_in
 @is_admin
 def adminPanel():
@@ -451,6 +451,15 @@ def adminPanel():
 	past = [event for event in eventList if event['eid'] not in upcomingIDs]
 	past.reverse()
 	return render_template('admin.html', result=anythingButMembers, upcoming=upcoming, past=past)
+
+# A feature that is intended only for admins when the semester is over and all memberships expire.
+@app.route('/reset-memberships')
+@is_logged_in
+@is_admin
+def resetMemberships():
+	update("users", ["status"], "status='MEMBER'", ['NON-MEMBER'])
+	flash ("All user memberships were reseted!", "warning")
+	return redirect(url_for('adminPanel'))
 
 # If the users decide to pay in person, an Admin can activate the membership in the admin panel
 @app.route('/activate/<string:id>/<string:memberType>')
