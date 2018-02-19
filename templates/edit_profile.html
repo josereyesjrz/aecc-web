@@ -13,16 +13,23 @@
         {{render_field(form.adminEmail, class_="form-control")}}
       </div>
     {% else %}
-    <div class="form-group">
-      {{render_field(form.studentFirstName, class_="form-control")}}
-    </div>
-    <div class="form-group">
-      {{render_field(form.studentLastName, class_="form-control")}}
-    </div>
+      <div class="form-group">
+        {{render_field(form.studentFirstName, class_="form-control")}}
+      </div>
+      <div class="form-group">
+        {{render_field(form.studentLastName, class_="form-control")}}
+      </div>
+      {% if session.admin %}
+      <div class="form-group">
+        {{render_field(form.email, class_="form-control")}}
+      </div>
+      {% endif %}
     {% endif %}
+    {% if id == session.id %}
     <div class="form-group">
       {{render_field(form.password, class_="form-control")}}
     </div>
+    {% endif %}
     <div class="form-group">
       {{render_field(form.new_password, class_="form-control")}}
     </div>
