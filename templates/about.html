@@ -28,13 +28,13 @@
 			</a>
 			<p><strong>{{ member['studentFirstName'] + " " + member['studentLastName'] }}</strong></p>
 			{% if member['gituser'] != None %}
-			<a href="https://github.com/{{member['gituser']}}">Github</a>
+			<a href="https://github.com/{{member['gituser']}}"><i class="fa fa-github-alt"></i></a>
 			{% endif %}
 			{% if member['facebook'] != None %}
-			<a href="https://facebook.com/{{member['facebook']}}">Facebook</a>
+			<a href="https://facebook.com/{{member['facebook']}}"><i class="fa fa-facebook-official"></i></a>
 			{% endif %}
 			{% if member['linkedin'] != None %}
-			<a href="https://linkedin.com/in/{{member['linkedin']}}">Linkedin</a>
+			<a href="https://linkedin.com/in/{{member['linkedin']}}"><i class="fa fa-linkedin"></i></a>
 			{% endif %}
 			{% if member['studentID'] == "vicepresident" %}
 			<p>Vice President</p>
