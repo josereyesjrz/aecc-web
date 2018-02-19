@@ -138,7 +138,7 @@ def create_checkout():
 
 # Admins List
 directivaMemberList = ['president', 'vicepresident', 'treasurer', 'pragent', 'secretary', 'boardmember1', 'boardmember2']
-
+#For user images
 gravatar = Gravatar(app,
 					size=100,
 					rating='g',
@@ -561,9 +561,8 @@ def getDirectiveFolder():
 	if not path.exists(currentDirectiveFolder):
 		makedirs(currentDirectiveFolder)
 	return currentDirectiveFolder
-
+# This function removes any url related inputs, so that only the username remains.
 def validSocialMediaUsername(sMedia, possibleURLs=()):
-	# This function removes any url related inputs, so that only the username remains.
 	if sMedia == "":
 		return None
 	for x in possibleURLs:
@@ -585,6 +584,7 @@ def edit_profile(id):
 		return render_template('404.html')
 	# If admin, get different form with admin email.
 	isAdminAccount = True if result['priviledge'] == 'ADMIN' else False
+	# If true the user 
 	if isAdminAccount:
 		courses = []
 		userCourseIDs = []
@@ -633,7 +633,9 @@ def edit_profile(id):
 		if session['admin'] or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 			fieldsToUpdate = []
 			fieldValues = []
+			# This if checks if the user is logged in as an admin.
 			if isAdminAccount:
+				#This if is for Admin Edit profile, since they can only change their emails and name.
 				email = form.adminEmail.data.lower()
 				if email != result['email']:
 					fieldsToUpdate.append("email")
@@ -644,6 +646,7 @@ def edit_profile(id):
 					else:
 						session['username'] = "Admin"
 			else:
+				# Edit Profile for members.
 				studentFirstName = form.studentFirstName.data
 				studentLastName = form.studentLastName.data
 				biography = form.biography.data
@@ -674,6 +677,7 @@ def edit_profile(id):
 
 				fieldsToUpdate.append("customPicture")
 				fieldValues.append(filename)
+				# If a member wants a new password, updates the password in the database. Generates a new salt for each password.
 			if form.new_password.data != "":
 				random_salt = urandom(64)
 				new_salt = random_salt.encode('hex')
@@ -723,7 +727,6 @@ def edit_profile(id):
 def user_profile(id):
 	# Get public user information by id
 	user = query_db("SELECT id,studentFirstName,studentLastName,email,biography,customPicture FROM users WHERE id = ?", (id,), True)
-	# TODO: Query the courses taken by that user
 	if user == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
