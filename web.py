@@ -311,13 +311,19 @@ def login():
 					# Passed with matching password
 					error = ""
 					session['logged_in'] = True
-					session['username'] = result['studentFirstName']
 					session['id'] = result['id']
 					session['email'] = result['email']
 					session['customPicture'] = result['customPicture']
 					session['confirmation'] = result['confirmation']
 					session['admin'] = True if result['priviledge'] == "ADMIN" else False
-
+					if session['admin']:
+						adminName = query_db("SELECT studentFirstName FROM users WHERE email=? and priviledge != 'ADMIN'", [result['email']], True)
+						if adminName != None:
+							session['username'] = adminName[0]
+						else:
+							session['username'] = "Admin"
+					else:
+						session['username'] = result['studentFirstName']
 					#flash('You are now logged in', 'success')
 					if session['admin']:
 						return redirect(url_for('adminPanel'))
@@ -616,11 +622,18 @@ def edit_profile(id):
 			pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
 		# Admin can bypass password verification or user must match their password.
 		if session['admin'] or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
+			fieldsToUpdate = []
+			fieldValues = []
 			if isAdminAccount:
 				email = form.adminEmail.data.lower()
 				if email != result['email']:
-					fieldsToUpdate = ["email"]
-					fieldValues = [form.adminEmail.data]
+					fieldsToUpdate.append("email")
+					fieldValues.append(form.adminEmail.data)
+					adminName = query_db("SELECT studentFirstName FROM users WHERE email=? and priviledge != 'ADMIN'", [email], True)
+					if adminName != None:
+						session['username'] = adminName[0]
+					else:
+						session['username'] = "Admin"
 			else:
 				studentFirstName = form.studentFirstName.data
 				studentLastName = form.studentLastName.data
@@ -652,7 +665,7 @@ def edit_profile(id):
 
 				fieldsToUpdate.append("customPicture")
 				fieldValues.append(filename)
-			if str(form.new_password.data) != "":
+			if form.new_password.data != "":
 				random_salt = urandom(64)
 				new_salt = random_salt.encode('hex')
 				new_password = scrypt.hash(form.new_password.data.encode('utf-8'), random_salt).encode('hex')
