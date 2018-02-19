@@ -24,7 +24,7 @@ mail = Mail(app)
 
 from decorators import is_logged_in, is_admin, is_allowed_edit, anonymous_user_required
 from db import get_db, close_connection, insert, update, delete, query_db
-from forms import RegisterForm, AdminForm, ProfileForm, EventForm, ResetPassword, ResetPasswordSubmit
+from forms import RegisterForm, AdminForm, ProfileForm, AdminEditsUser, EventForm, ResetPassword, ResetPasswordSubmit
 # Loads the Braintree credentials
 dotenv_path = 'mycred.env'
 load_dotenv(dotenv_path)
@@ -547,6 +547,17 @@ def getDirectiveFolder():
 		makedirs(currentDirectiveFolder)
 	return currentDirectiveFolder
 
+def validSocialMediaUsername(sMedia, possibleURLs=()):
+	# This function removes any url related inputs, so that only the username remains.
+	if sMedia == "":
+		return None
+	for x in possibleURLs:
+		if sMedia.endswith("/"):
+			sMedia = sMedia[:-1]
+		if sMedia.startswith(x):
+		 	return sMedia[len(x):]
+	return sMedia
+
 # Edit profile
 @app.route('/edit-profile/<int:id>', methods=['GET', 'POST'])
 @is_logged_in
@@ -573,11 +584,15 @@ def edit_profile(id):
 		userCourseIDs = query_db("SELECT cid FROM courses_taken where uid=?", [id])
 		userCourseIDs = [ucID['cid'] for ucID in userCourseIDs]
 		# Create form for the regular users to display current information about that user.
-		form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'], GitHub=result['gituser'], Facebook=result['facebook'], LinkedIn=result['linkedin'])
+		if session['admin']:
+			form = AdminEditsUser(studentFirstName=result['studentFirstName'], email=result['email'], studentLastName=result['studentLastName'], biography=result['biography'], GitHub=result['gituser'], Facebook=result['facebook'], LinkedIn=result['linkedin'])
+		else:
+			form = ProfileForm(studentFirstName=result['studentFirstName'], studentLastName=result['studentLastName'], biography=result['biography'], GitHub=result['gituser'], Facebook=result['facebook'], LinkedIn=result['linkedin'])
 		# Extracts majors
 		majors = query_db("SELECT * FROM majors")
 		# Looks up a user's major
 		userMajor = query_db("SELECT mid FROM user_majors WHERE uid=?", [id], True)['mid']
+	# After clicking submit button, validate the form
 	if request.method == 'POST' and form.validate_on_submit():
 		currentMajor = ""
 		if not isAdminAccount:
@@ -585,53 +600,42 @@ def edit_profile(id):
 			if query_db("SELECT * FROM majors WHERE mname=?", [currentMajor], True) == None:
 				flash('Wrong major entered.', 'danger')
 				return redirect(url_for('edit_profile', id=id))
+			# Obtain data from form and remove unnecessary characters
 			github = form.GitHub.data.replace(' ', '')
 			facebook = form.Facebook.data.replace(' ', '')
 			linkedin = form.LinkedIn.data.replace(' ', '')
-			if github == "":
-				github = None
-			else:
-				for x in ('https://github.com/','github.com/'):
-					if github.endswith("/"):
-						github = github[:-1]
-					if github.startswith(x):
-					 	github = github[len(x):]
-					 	break
-			if facebook == "":
-				facebook = None
-			else:
-				for x in ('https://facebook.com/','facebook.com/'):
-					if facebook.endswith("/"):
-						facebook = facebook[:-1]
-					if facebook.startswith(x):
-					 	facebook = facebook[len(x):]
-						break
-			if linkedin == "":
-				linkedin = None
-			else:
-				for x in ('https://www.linkedin.com/in/','www.linkedin.com/in/', 'linkedin.com/in/'):
-					if linkedin.endswith("/"):
-						linkedin = linkedin[:-1]
-					if linkedin.startswith(x):
-						linkedin = linkedin[len(x):]
-					 	break
+			# Filter the input to only receive a username to store to the database
+			if github != result['gituser']:
+				github = validSocialMediaUsername(github, ('https://github.com/', 'github.com/'))			
+			if facebook != result['facebook']:
+				facebook = validSocialMediaUsername(facebook, ('https://facebook.com/','facebook.com/'))
+			if linkedin != result['linkedin']:
+				linkedin = validSocialMediaUsername(linkedin, ('https://www.linkedin.com/in/','www.linkedin.com/in/', 'linkedin.com/in/'))
 		# Extracts password and salt to validate.
-		pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
+		if not (session['admin'] or isAdminAccount):
+			pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
 		# Admin can bypass password verification or user must match their password.
-		if session['id'] != id or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
-			studentFirstName = form.studentFirstName.data
-			studentLastName = form.studentLastName.data
-			
+		if session['admin'] or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
+			if isAdminAccount:
+				email = form.adminEmail.data.lower()
+				if email != result['email']:
+					fieldsToUpdate = ["email"]
+					fieldValues = [form.adminEmail.data]
+			else:
+				studentFirstName = form.studentFirstName.data
+				studentLastName = form.studentLastName.data
+				biography = form.biography.data
+				fieldsToUpdate = ["studentFirstName", "studentLastName", "gituser", "facebook", "linkedin"]
+				fieldValues = [studentFirstName, studentLastName, github, facebook, linkedin]
+				if biography != result['biography']:
+					fieldsToUpdate.append("biography")
+					fieldValues.append(biography)
+				if session['admin'] and form.email.data.lower() != result['email']:
+					fieldsToUpdate.append("email")
+					fieldValues.append(form.email.data.lower())
 			f = request.files['uploadFile']
 			filename = secure_filename(f.filename)
-			if isAdminAccount:
-				fieldsToUpdate = ["email"]
-				fieldValues = [form.adminEmail.data]
-			else:
-				fieldsToUpdate = ["studentFirstName", "studentLastName", "biography", "gituser", "facebook", "linkedin"]
-				fieldValues = [studentFirstName, studentLastName, form.biography.data, github, facebook, linkedin]
 			if filename != "":
-				filename = secure_filename(f.filename)
 				filename = str(id)+"."+str(filename.split('.')[-1])
 				for img in glob.glob(app.config['UPLOAD_FOLDER'] + "/" + str(id)+".*"):
 					if path.exists(img):
@@ -657,8 +661,9 @@ def edit_profile(id):
 
 			fieldValues.append(id)
 			# Update the database to include the new set parameters by the user
-			update("users", fieldsToUpdate, "id=?", fieldValues)
-			if (session['id'] != id and session['admin']) or (session['id'] == id and not session['admin']):
+			if len(fieldValues) > 1:
+				update("users", fieldsToUpdate, "id=?", fieldValues)
+			if not isAdminAccount:
 
 				majorID = query_db("SELECT mid FROM majors WHERE mname=?", [currentMajor], True)
 				# Updates the user's major
@@ -682,10 +687,8 @@ def edit_profile(id):
 
 			# If admin is editing the profile, only change the session variables for the user
 			if session['id'] == id:
-				if session['admin'] and str(form.adminEmail.data) != "":
-					# Sets admin email to lowercase
-					update("users", ("email",), "id=?", (str(form.adminEmail.data).lower(), id))
-				session['username'] = studentFirstName
+				if not isAdminAccount:
+					session['username'] = studentFirstName
 				if filename != "":
 					session['customPicture'] = filename
 			flash('User profile modified', 'success')
