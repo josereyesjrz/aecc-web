@@ -1,19 +1,29 @@
 {% extends 'layout.html' %}
 
+<!-- Edited by Anthony Rios -->
+
 {% block body %}
-  <h1>{{user['studentFirstName'] + " " + user['studentLastName']}}</h1>
-  	{% if user['customPicture'] == "FALSE" %}
-  		<img src="{{ user['email'] | gravatar }}" height="100" width="100">
-	{% else %}
-		<img src="{{ url_for('static', filename='uploads/'+user['customPicture']) }}" height="100" width="100">
-	{% endif %}
-	{% if user['id'] == session.id or session.admin %}
-		<a class="btn btn-success" href="{{url_for('edit_profile', id=user['id'])}}">(Edit Profile)</a>
-	{% endif %}
-  <p>Biography</p>
-  {% if user['biography'] == None %}
-  <p>This user has not written a biography.</p>
-  {% else %}
- 	{{ user['biography']|safe }}
-  {% endif %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-xs-6 col-sm-6 col-lg-6 col-md-6">
+      <h1>{{user['studentFirstName'] + " " + user['studentLastName']}}</h1>
+      	{% if user['customPicture'] == "FALSE" %}
+      		<img src="{{ user['email'] | gravatar }}" height="100" width="100">
+    	{% else %}
+    		<img src="{{ url_for('static', filename='uploads/'+user['customPicture']) }}" height="100" width="100">
+    	{% endif %}
+    	{% if user['id'] == session.id or session.admin %}
+    		<a class="btn btn-success" href="{{url_for('edit_profile', id=user['id'])}}">(Edit Profile)</a>
+    	{% endif %}
+      <h2>Biography</h2>
+      <div class="well-lg">
+        {% if user['biography'] == None %}
+        <p>This user has not written a biography.</p>
+        {% else %}
+       	{{ user['biography']|safe }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
