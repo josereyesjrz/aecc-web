@@ -1,13 +1,27 @@
 {% extends 'layout.html' %}
-<!-- Edited by Anthony Rios -->
+<!-- Edited by Anthony Rios & Emmanuel Nieves-->
 <style type="text/css">
-	.container-fluid {
+	.container-fluid 
+	{
 		padding-bottom: 200px;
 	}
+
+	/*.carousel-inner img
+	{
+		max-width: 100%;
+		max-height: 100%;
+	}
+
+	.item
+	{
+		height: 500px;
+		width: 1920px;
+	}*/
+
+
 </style>
 
 {% block body %}
-	<!-- Aqui va un slider que se yo -->
 	<div class="container-fluid">
 		<div id="featured" class="carousel slide" data-ride="carousel">
 			<!-- Indicators -->
@@ -15,24 +29,19 @@
 				<li data-target="#featured" data-slide-to="0" class="active"></li>
 				<li data-target="#featured" data-slide-to="1"></li>
 				<li data-target="#featured" data-slide-to="2"></li>
-				<li data-target="#featured" data-slide-to="3"></li>
 			</ol>
 
 			<div class="carousel-inner">
 				<div class="item active">
-					<img class="img-responsive" style="height: 500px; width: auto;" src="{{ url_for('static', filename='images/include_2016_2.jpg')}}" alt="Event 1">
+					<img src="{{url_for('static', filename='images/include_2016_2.jpeg')}}" alt="Event 1">
 				</div>
 				<div class="item">
-					<img src="http://focusonthespirit.com/emily_maher/images/1920x500.gif" alt="Event 2">
+					<img src="{{url_for('static', filename='images/primera_2016.jpeg')}}" alt="Event 2">
 				</div>
 				<div class="item">
-					<img src="http://focusonthespirit.com/emily_maher/images/1920x500.gif" alt="Event 3">
-				</div>
-				<div class="item">
-					<img src="http://focusonthespirit.com/emily_maher/images/1920x500.gif" alt="Event 4">
+					<img src="{{url_for('static', filename='images/include_2016.jpeg')}}" alt="Event 3">
 				</div>
 			</div>
-
 			<!-- Left and right controls -->
 			<a class="left carousel-control" href="#featured" data-slide="prev">
 				<span class="glyphicon glyphicon-chevron-left"></span>
@@ -45,7 +54,6 @@
 			</a>
 		</div>
 	</div>
-	<!-- montar grid -->
 	<div class="container-fluid">
 		<div class="row">
 			<div class="col-sm-6 col-lg-6 col-md-6 col-xs-12">
