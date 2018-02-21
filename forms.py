@@ -26,7 +26,6 @@ class RegisterForm(FlaskForm):
 
 # Admin Form for when an admin edits their profile
 class AdminForm(FlaskForm):
-	uploadFile = FileField("Image to display in About page.", validators=[FileAllowed(['png', 'jpg', 'jpeg', 'gif'], 'Images only!')])
 	# Add regular expression to check if endswith('@upr.edu')
 	adminEmail = EmailField('Email @upr.edu that connects to your AECC account.', validators=[validators.Length(min=10, max=35), validators.Email()])
 	password = PasswordField('Current Password (Enter to make any changes)', [

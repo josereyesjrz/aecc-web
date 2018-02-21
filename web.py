@@ -4,7 +4,7 @@ from datetime import datetime, date
 import scrypt
 # Upload
 from os import path, remove, stat, environ, urandom, makedirs, listdir
-from shutil import copy2
+from shutil import copy2, move
 import glob
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
@@ -301,7 +301,10 @@ def login():
 		if validCredentials:
 			password_candidate = request.form['password'].encode('utf-8')
 			# Get user by username. Admins can only login with their board member title. Regular users can login with email or with student ID number.
-			result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True) if logging_with_email else query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
+			if logging_with_email:
+				result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True)
+			else:
+				result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
 				# Decode retrieved salt and hashed password
 				uni_salt = result['salt'].decode('hex')
@@ -317,9 +320,10 @@ def login():
 					session['confirmation'] = result['confirmation']
 					session['admin'] = True if result['priviledge'] == "ADMIN" else False
 					if session['admin']:
-						adminName = query_db("SELECT studentFirstName FROM users WHERE email=? and priviledge != 'ADMIN'", [result['email']], True)
-						if adminName != None:
-							session['username'] = adminName[0]
+						connectedEmailAccount = query_db("SELECT studentFirstName FROM users WHERE email=? and priviledge != 'ADMIN'", [result['email']], True)
+						# Account exists
+						if connectedEmailAccount != None:
+							session['username'] = connectedEmailAccount['studentFirstName']
 						else:
 							session['username'] = "Admin"
 					else:
@@ -578,7 +582,7 @@ def validSocialMediaUsername(sMedia, possibleURLs=()):
 @is_allowed_edit
 def edit_profile(id):
 	# Gets student's name and email by id.
-	result = query_db("SELECT studentFirstName,studentLastName,email,biography,facebook,gituser,linkedin,priviledge FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,email,customPicture,biography,facebook,gituser,linkedin,priviledge FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
@@ -628,7 +632,7 @@ def edit_profile(id):
 				linkedin = validSocialMediaUsername(linkedin, ('https://www.linkedin.com/in/','www.linkedin.com/in/', 'linkedin.com/in/'))
 		# Extracts password and salt to validate.
 		if not (session['admin'] or isAdminAccount):
-			pass_salt = query_db("SELECT password,salt FROM users WHERE id = ?", [id], True)
+			pass_salt = query_db("SELECT password,salt FROM users WHERE id=?", [id], True)
 		# Admin can bypass password verification or user must match their password.
 		if session['admin'] or scrypt.hash(form.password.data.encode('utf-8'), pass_salt['salt'].decode('hex')) == pass_salt['password'].decode('hex'):
 			fieldsToUpdate = []
@@ -640,9 +644,26 @@ def edit_profile(id):
 				if email != result['email']:
 					fieldsToUpdate.append("email")
 					fieldValues.append(form.adminEmail.data)
-					adminName = query_db("SELECT studentFirstName FROM users WHERE email=? and priviledge != 'ADMIN'", [email], True)
-					if adminName != None:
-						session['username'] = adminName[0]
+					connectedEmailAccount = query_db("SELECT id,studentFirstName,customPicture FROM users WHERE email=? and priviledge != 'ADMIN'", [email], True)
+					# Account exists
+					if connectedEmailAccount != None:
+						session['username'] = connectedEmailAccount['studentFirstName']
+						if connectedEmailAccount['customPicture'] != "FALSE":
+							# To store images of directives
+							currentDirectiveFolder = getDirectiveFolder()
+							userCustomPicture = result['customPicture']
+							if userCustomPicture != "FALSE":
+								img = path.join(currentDirectiveFolder, userCustomPicture)
+								if path.exists(img):
+									remove(img)
+							if path.exists(currentDirectiveFolder):
+								fullpath = path.join(app.config['UPLOAD_FOLDER'], connectedEmailAccount['customPicture'])
+								if path.exists(fullpath):
+									imgExtension = connectedEmailAccount['customPicture'].split('.')[-1]
+									copy2(fullpath, currentDirectiveFolder)
+									update("users", ["customPicture"], "id=?", (connectedEmailAccount['customPicture'], id))
+									if session['admin'] == int(id):
+										session['customPicture'] = connectedEmailAccount['customPicture']
 					else:
 						session['username'] = "Admin"
 			else:
@@ -658,25 +679,31 @@ def edit_profile(id):
 				if session['admin'] and form.email.data.lower() != result['email']:
 					fieldsToUpdate.append("email")
 					fieldValues.append(form.email.data.lower())
-			f = request.files['uploadFile']
-			filename = secure_filename(f.filename)
-			if filename != "":
-				filename = str(id)+"."+str(filename.split('.')[-1])
-				for img in glob.glob(app.config['UPLOAD_FOLDER'] + "/" + str(id)+".*"):
-					if path.exists(img):
-						remove(img)
-				f.save(path.join(app.config['UPLOAD_FOLDER'], filename))
-				# To store images of directives
-				if session['id'] == id and session['admin']:
-					currentDirectiveFolder = getDirectiveFolder()
-					for img in glob.glob(currentDirectiveFolder + "/" + str(id)+".*"):
-						if path.exists(img):
-							remove(img)
-					if path.exists(currentDirectiveFolder):
-						copy2(path.join(app.config['UPLOAD_FOLDER']+"/{}".format(filename)), currentDirectiveFolder)
-
-				fieldsToUpdate.append("customPicture")
-				fieldValues.append(filename)
+				f = request.files['uploadFile']
+				filename = secure_filename(f.filename)
+				if filename != "":
+					filename = str(id)+"."+str(filename.split('.')[-1])
+					userCustomPicture = result['customPicture']
+					if userCustomPicture != "FALSE":
+						imgPath = path.join(app.config['UPLOAD_FOLDER'], userCustomPicture)
+						if path.exists(imgPath):
+							remove(imgPath)
+					imgPathCreated = path.join(app.config['UPLOAD_FOLDER'], filename)
+					f.save(imgPathCreated)
+					fieldsToUpdate.append("customPicture")
+					fieldValues.append(filename)
+					adminExists = query_db("SELECT id FROM users WHERE email=? and priviledge='ADMIN'", [result['email']], True)
+					if adminExists:
+						currentDirectiveFolder = getDirectiveFolder()
+						if userCustomPicture != "FALSE":
+							img = path.join(currentDirectiveFolder, userCustomPicture)
+							if path.exists(img):
+								remove(img)
+						if path.exists(imgPathCreated):
+							copy2(imgPathCreated, currentDirectiveFolder)
+							update("users", ["customPicture"], "id=?", [filename,adminExists['id']])
+							if session['id'] == adminExists['id']:
+								session['customPicture'] = filename
 				# If a member wants a new password, updates the password in the database. Generates a new salt for each password.
 			if form.new_password.data != "":
 				random_salt = urandom(64)
@@ -690,7 +717,6 @@ def edit_profile(id):
 			if len(fieldValues) > 1:
 				update("users", fieldsToUpdate, "id=?", fieldValues)
 			if not isAdminAccount:
-
 				majorID = query_db("SELECT mid FROM majors WHERE mname=?", [currentMajor], True)
 				# Updates the user's major
 				update("user_majors", ["mid"], "uid=?", [majorID['mid'], id])

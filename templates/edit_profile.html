@@ -5,14 +5,14 @@
   {% from "includes/_formhelpers.html" import render_field %}
   <form method="POST" enctype="multipart/form-data">
     {{ form.csrf_token }}
-    <div class="form-group">
-      {{render_field(form.uploadFile, class_="form-control")}}
-    </div>
     {% if priviledge %}
       <div class="form-group">
         {{render_field(form.adminEmail, class_="form-control")}}
       </div>
     {% else %}
+      <div class="form-group">
+        {{render_field(form.uploadFile, class_="form-control")}}
+      </div>
       <div class="form-group">
         {{render_field(form.studentFirstName, class_="form-control")}}
       </div>
