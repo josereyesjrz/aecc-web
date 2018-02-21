@@ -4,8 +4,7 @@ from datetime import datetime, date
 import scrypt
 # Upload
 from os import path, remove, stat, environ, urandom, makedirs, listdir
-from shutil import copy2, move
-import glob
+from shutil import copy2
 from werkzeug.utils import secure_filename
 from flask_gravatar import Gravatar
 # Email confirmation 'emailToken.py'
