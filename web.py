@@ -90,7 +90,7 @@ def show_checkout(transaction_id):
 
 			insert("transactions", ("uid", "tdate", "token"), (session['id'], transaction.created_at, transaction_id))
 			# Extracts email and student's name for receipt email
-			user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", (session['id'],), True)
+			user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", [session['id']], True)
 			html = render_template('receipt.html', transaction = transaction, membertype = memberType, user = user)
 			subject = "Receipt"
 			emailToken.send_email(user['email'], subject, html)
@@ -457,7 +457,7 @@ def adminPanel():
 @is_logged_in
 @is_admin
 def resetMemberships():
-	update("users", ["status"], "status='MEMBER'", ['NON-MEMBER'])
+	update("users", ("status", "memberType"), "status='MEMBER'", ('NON-MEMBER', None))
 	flash ("All user memberships were reseted!", "warning")
 	return redirect(url_for('adminPanel'))
 
@@ -573,7 +573,7 @@ def validSocialMediaUsername(sMedia, possibleURLs=()):
 	return sMedia
 
 # Edit profile
-@app.route('/edit-profile/<int:id>', methods=['GET', 'POST'])
+@app.route('/edit-profile/<string:id>', methods=['GET', 'POST'])
 @is_logged_in
 @is_allowed_edit
 def edit_profile(id):
@@ -721,7 +721,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, priviledge=isAdminAccount, id=id)
+	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, priviledge=isAdminAccount, id=int(id))
 # Loads the profile of the member that was selected
 @app.route('/user/<string:id>')
 def user_profile(id):
@@ -744,8 +744,8 @@ def user_profile(id):
 	# Check if the user is logged in and is their own profile page
 	if 'logged_in' in session and session['id'] == int(id):
 		# Checks if user is not admin nor a member nor suspended
-		if not session['admin'] and query_db("SELECT status FROM users WHERE id=? and status!='MEMBER' and status!='SUSPENDED'", (id,), True):
-			flash(Markup('You have not paid your membership. <a href="'+url_for('new_checkout')+'">Click here to pay online.</a>'), 'warning')
+		if not session['admin'] and query_db("SELECT status FROM users WHERE id=? and status!='MEMBER' and status!='SUSPENDED'", [id], True):
+			flash(Markup('You have not paid your membership for this semester. <a href="'+url_for('new_checkout')+'">Click here to pay online.</a>'), 'warning')
 		# Check if the user's account is confirmed
 		if not session['confirmation']:
 			flash(Markup('Please confirm your account! Didn\'t get the email? <a href="'+url_for('resend_confirmation')+'">Resend</a>'), 'warning')

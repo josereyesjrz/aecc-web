@@ -18,7 +18,7 @@ class RegisterForm(FlaskForm):
 	# Password must have at least 8 characters long, at least 1 number, at least 1 uppercase
 	password = PasswordField('Password', validators=[
 		validators.DataRequired(), validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
-		validators.EqualTo('confirm', message='Passwords do not match'),
+		validators.EqualTo('confirm', message='Passwords do not match.'),
 		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")])
 	confirm = PasswordField('Confirm Password')
 	# Check to redirect to transaction payment, uncheck to redirect to unconfirmed page.
@@ -33,7 +33,7 @@ class AdminForm(FlaskForm):
 		validators.DataRequired(message='Enter your password to make any changes.')
 	])
 	new_password = PasswordField('New Password', validators=[
-		validators.EqualTo('confirm', message='Passwords do not match'), 
+		validators.EqualTo('confirm', message='Passwords do not match.'), 
 		validators.Regexp("(^$)|(\d.*[A-Z]|[A-Z].*\d)", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
@@ -47,7 +47,7 @@ class ProfileForm(FlaskForm):
 		validators.DataRequired(message='Enter your password to make any changes.')
 	])
 	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match'),
+		validators.EqualTo('confirm', message='Passwords do not match.'),
 		validators.Regexp("(^$)|(\d.*[A-Z]|[A-Z].*\d)", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
@@ -62,7 +62,7 @@ class AdminEditsUser(FlaskForm):
 	studentFirstName = StringField('First Name', validators=[validators.Length(min=1,max=25)])
 	studentLastName = StringField('Last Name', validators=[validators.Length(min=1,max=25)])
 	new_password = PasswordField('New Password', [
-		validators.EqualTo('confirm', message='Passwords do not match'),
+		validators.EqualTo('confirm', message='Passwords do not match.'),
 		validators.Regexp("(^$)|(\d.*[A-Z]|[A-Z].*\d)", message="Password must contain at least 1 uppercase letter and number.")
 	])
 	confirm = PasswordField('Confirm New Password')
@@ -95,7 +95,7 @@ class ResetPassword(FlaskForm):
 
 class ResetPasswordSubmit(FlaskForm):
 	password = PasswordField('Password', validators=[validators.Length(min=8, max=30, message='Password must be at least 8 characters long and 30 max.'),
-		validators.EqualTo('confirm', message='Passwords do not match'), validators.Regexp("[A-Z]", message="Password must contain at least 1 uppercase letter."),
+		validators.EqualTo('confirm', message='Passwords do not match.'), validators.Regexp("[A-Z]", message="Password must contain at least 1 uppercase letter."),
 		validators.Regexp("\d.*[A-Z]|[A-Z].*\d", message="Password must contain at least 1 uppercase letter and number.")
 		])
 	confirm = PasswordField('Confirm Password')
