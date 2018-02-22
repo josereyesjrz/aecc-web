@@ -50,19 +50,19 @@
         </select>
       </div>
       <strong>Courses Taken</strong>
-      <div>
-        <table>
+      <div class="row">
       {% for course in courses %}
-          <tr>
+      <div class="col-lg-4">
+          <label class="checkbox-inline">
               {% if course['cid'] in userCourseIDs %}
-              <td><input type=checkbox name=course_ids value="{{ course['cid'] }}" checked></td>
+              <input type=checkbox name=course_ids value="{{ course['cid'] }}" checked>
               {% else %}
-              <td><input type=checkbox name=course_ids value="{{ course['cid'] }}" unchecked></td>
+              <input type=checkbox name=course_ids value="{{ course['cid'] }}" unchecked>
               {% endif %}
               <td>{{ course['ccname'] }} ({{ course['ccode'] }})</td>
-          </tr>
+          </label>
+      </div>
       {% endfor %}
-        </table>
       </br>
     </div>
     <div>
