@@ -5,7 +5,7 @@
   {% from "includes/_formhelpers.html" import render_field %}
   <form method="POST" enctype="multipart/form-data">
     {{ form.csrf_token }}
-    {% if priviledge %}
+    {% if privilege %}
       <div class="form-group">
         {{render_field(form.adminEmail, class_="form-control")}}
       </div>

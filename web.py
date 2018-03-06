@@ -678,31 +678,32 @@ def edit_profile(id):
 				if session['admin'] and form.email.data.lower() != result['email']:
 					fieldsToUpdate.append("email")
 					fieldValues.append(form.email.data.lower())
-				f = request.files['uploadFile']
-				filename = secure_filename(f.filename)
-				if filename != "":
-					filename = str(id)+"."+str(filename.split('.')[-1])
-					userCustomPicture = result['customPicture']
-					if userCustomPicture != "FALSE":
-						imgPath = path.join(app.config['UPLOAD_FOLDER'], userCustomPicture)
-						if path.exists(imgPath):
-							remove(imgPath)
-					imgPathCreated = path.join(app.config['UPLOAD_FOLDER'], filename)
-					f.save(imgPathCreated)
-					fieldsToUpdate.append("customPicture")
-					fieldValues.append(filename)
-					adminExists = query_db("SELECT id FROM users WHERE email=? and privilege='ADMIN'", [result['email']], True)
-					if adminExists:
-						currentDirectiveFolder = getDirectiveFolder()
+				if 'uploadFile' in request.files:
+					f = request.files['uploadFile']
+					filename = secure_filename(f.filename)
+					if filename != "":
+						filename = str(id)+"."+str(filename.split('.')[-1])
+						userCustomPicture = result['customPicture']
 						if userCustomPicture != "FALSE":
-							img = path.join(currentDirectiveFolder, userCustomPicture)
-							if path.exists(img):
-								remove(img)
-						if path.exists(imgPathCreated):
-							copy2(imgPathCreated, currentDirectiveFolder)
-							update("users", ["customPicture"], "id=?", [filename,adminExists['id']])
-							if session['id'] == adminExists['id']:
-								session['customPicture'] = filename
+							imgPath = path.join(app.config['UPLOAD_FOLDER'], userCustomPicture)
+							if path.exists(imgPath):
+								remove(imgPath)
+						imgPathCreated = path.join(app.config['UPLOAD_FOLDER'], filename)
+						f.save(imgPathCreated)
+						fieldsToUpdate.append("customPicture")
+						fieldValues.append(filename)
+						adminExists = query_db("SELECT id FROM users WHERE email=? and privilege='ADMIN'", [result['email']], True)
+						if adminExists:
+							currentDirectiveFolder = getDirectiveFolder()
+							if userCustomPicture != "FALSE":
+								img = path.join(currentDirectiveFolder, userCustomPicture)
+								if path.exists(img):
+									remove(img)
+							if path.exists(imgPathCreated):
+								copy2(imgPathCreated, currentDirectiveFolder)
+								update("users", ["customPicture"], "id=?", [filename,adminExists['id']])
+								if session['id'] == adminExists['id']:
+									session['customPicture'] = filename
 				# If a member wants a new password, updates the password in the database. Generates a new salt for each password.
 			if form.new_password.data != "":
 				random_salt = urandom(64)
@@ -710,10 +711,9 @@ def edit_profile(id):
 				new_password = scrypt.hash(form.new_password.data.encode('utf-8'), random_salt).encode('hex')
 				fieldsToUpdate.extend(["password", "salt"])
 				fieldValues.extend([new_password, new_salt])
-
-			fieldValues.append(id)
 			# Update the database to include the new set parameters by the user
-			if len(fieldValues) > 1:
+			if len(fieldValues) > 0:
+				fieldValues.append(id)
 				update("users", fieldsToUpdate, "id=?", fieldValues)
 			if not isAdminAccount:
 				majorID = query_db("SELECT mid FROM majors WHERE mname=?", [currentMajor], True)
