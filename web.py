@@ -670,6 +670,7 @@ def edit_profile(id):
 				studentFirstName = form.studentFirstName.data
 				studentLastName = form.studentLastName.data
 				biography = form.biography.data
+				filename = ""
 				fieldsToUpdate = ["studentFirstName", "studentLastName", "gituser", "facebook", "linkedin"]
 				fieldValues = [studentFirstName, studentLastName, github, facebook, linkedin]
 				if biography != result['biography']:
@@ -737,7 +738,7 @@ def edit_profile(id):
 						insert("courses_taken", ("uid", "cid"), (id, cid))
 
 			# If admin is editing the profile, only change the session variables for the user
-			if session['id'] == id:
+			if session['id'] == int(id):
 				if not isAdminAccount:
 					session['username'] = studentFirstName
 				if filename != "":
