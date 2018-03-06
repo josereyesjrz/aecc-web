@@ -17,10 +17,10 @@ def is_logged_in(f):
 def is_admin(f):
 	@wraps(f)
 	def wrap(*args, **kwargs):
-		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True):
+		if 'ADMIN' in query_db("SELECT privilege FROM users WHERE id=?", [session['id']], True):
 			return f(*args, **kwargs)
 		else:
-			flash('Unauthorized: You do not have sufficient priviledges.', 'danger')
+			flash('Unauthorized: You do not have sufficient privileges.', 'danger')
 			return redirect(url_for('login'))
 	return wrap
 
@@ -28,7 +28,7 @@ def is_admin(f):
 def is_allowed_edit(f):
 	@wraps(f)
 	def wrap(*args, **kwargs):
-		if 'ADMIN' in query_db("SELECT priviledge FROM users WHERE id=?", [session['id']], True) or str(kwargs['id']) == str(session['id']):
+		if 'ADMIN' in query_db("SELECT privilege FROM users WHERE id=?", [session['id']], True) or str(kwargs['id']) == str(session['id']):
 			return f(*args, **kwargs)
 		else:
 			flash('Unauthorized: Attempting to modify information from other user.', 'danger')

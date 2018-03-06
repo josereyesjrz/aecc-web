@@ -89,7 +89,7 @@ def show_checkout(transaction_id):
 
 			insert("transactions", ("uid", "tdate", "token"), (session['id'], transaction.created_at, transaction_id))
 			# Extracts email and student's name for receipt email
-			user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and priviledge != 'ADMIN'", [session['id']], True)
+			user = query_db("SELECT email, studentFirstName, studentLastName FROM users WHERE id=? and privilege != 'ADMIN'", [session['id']], True)
 			html = render_template('receipt.html', transaction = transaction, membertype = memberType, user = user)
 			subject = "Receipt"
 			emailToken.send_email(user['email'], subject, html)
@@ -204,7 +204,7 @@ def members():
 def about():
 	directiveFolder = getDirectiveFolder().replace('static/', '')
 	# Extracts admin info from db based on another user non-admin account with the same email.
-	directivaMembers = query_db("SELECT u2.id, u2.studentFirstName, u2.studentLastName, u2.gituser, u2.facebook, u2.linkedin, u1.customPicture, u1.studentID FROM users as u1, users as u2 WHERE u1.priviledge = 'ADMIN' and u1.email = u2.email and u2.priviledge!='ADMIN'")
+	directivaMembers = query_db("SELECT u2.id, u2.studentFirstName, u2.studentLastName, u2.gituser, u2.facebook, u2.linkedin, u1.customPicture, u1.studentID FROM users as u1, users as u2 WHERE u1.privilege = 'ADMIN' and u1.email = u2.email and u2.privilege!='ADMIN'")
 	return render_template('about.html', directiva=directivaMembers, directiveFolder=directiveFolder)
 # Will let a user that doesnt have an account create a new account
 # User Register
@@ -223,7 +223,7 @@ def register():
 			# Check that student number, email and phone number are unique
 			if query_db("SELECT id FROM users WHERE studentID = ?", [studentID]):
 				flash('Student Number already taken.', 'danger')
-			elif query_db("SELECT id FROM users WHERE email = ? and priviledge != 'ADMIN'", [email]):
+			elif query_db("SELECT id FROM users WHERE email = ? and privilege != 'ADMIN'", [email]):
 				flash('Email address already taken.', 'danger')
 			elif query_db("SELECT id FROM users WHERE phoneNumber = ?", [phoneNumber]):
 				flash('Phone Number already taken.', 'danger')
@@ -301,9 +301,9 @@ def login():
 			password_candidate = request.form['password'].encode('utf-8')
 			# Get user by username. Admins can only login with their board member title. Regular users can login with email or with student ID number.
 			if logging_with_email:
-				result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE email = ? and priviledge != 'ADMIN'", (username,), True)
+				result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,privilege FROM users WHERE email = ? and privilege != 'ADMIN'", (username,), True)
 			else:
-				result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,priviledge FROM users WHERE studentID = ?", (username,), True)
+				result = query_db("SELECT id,studentFirstName,email,password,salt,customPicture,confirmation,privilege FROM users WHERE studentID = ?", (username,), True)
 			if result != None:
 				# Decode retrieved salt and hashed password
 				uni_salt = result['salt'].decode('hex')
@@ -317,9 +317,9 @@ def login():
 					session['email'] = result['email']
 					session['customPicture'] = result['customPicture']
 					session['confirmation'] = result['confirmation']
-					session['admin'] = True if result['priviledge'] == "ADMIN" else False
+					session['admin'] = True if result['privilege'] == "ADMIN" else False
 					if session['admin']:
-						connectedEmailAccount = query_db("SELECT studentFirstName FROM users WHERE email=? and priviledge != 'ADMIN'", [result['email']], True)
+						connectedEmailAccount = query_db("SELECT studentFirstName FROM users WHERE email=? and privilege != 'ADMIN'", [result['email']], True)
 						# Account exists
 						if connectedEmailAccount != None:
 							session['username'] = connectedEmailAccount['studentFirstName']
@@ -361,7 +361,7 @@ def forgot_password():
 	if form.validate_on_submit():
 		email = form.email.data
 		# Extracts corresponding user id
-		user = query_db("SELECT id FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+		user = query_db("SELECT id FROM users WHERE email=? and privilege != 'ADMIN'", (email,), True)
 		if user:
 			token = get_token(user['id'])
 			confirm_url = url_for('reset_password', token=token, _external=True)
@@ -383,7 +383,7 @@ def reset_password(token):
 			new_password = scrypt.hash(password_submit_form.password.data.encode('utf-8'), random_salt).encode('hex')
 			
 			# Resets password where account is not admin
-			update("users", ("password", "salt"), "id=? and priviledge != 'ADMIN'", (new_password, new_salt, verified_result))
+			update("users", ("password", "salt"), "id=? and privilege != 'ADMIN'", (new_password, new_salt, verified_result))
 			flash('Password updated successfully', 'success')
 			return redirect(url_for('login'))
 		return render_template("reset_password.html", form=password_submit_form)
@@ -396,7 +396,7 @@ def confirm_email(token):
 	try:
 		email = emailToken.confirm_token(token)
 		# Extracts if user confirmed
-		user = query_db("SELECT confirmation FROM users WHERE email=? and priviledge != 'ADMIN'", (email,), True)
+		user = query_db("SELECT confirmation FROM users WHERE email=? and privilege != 'ADMIN'", (email,), True)
 		if user != None:
 			if user['confirmation']:
 				flash('Your account is already confirmed', 'success')
@@ -444,7 +444,7 @@ def logout():
 @is_admin
 def adminPanel():
 	# Extracts users who are not members nor admins
-	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'MEMBER' and priviledge != 'ADMIN'")
+	anythingButMembers = query_db("SELECT id,studentFirstName,studentLastName,email,customPicture,status FROM users WHERE status != 'MEMBER' and privilege != 'ADMIN'")
 	# Extracts up to 50 events
 	eventList = query_db("SELECT * FROM events ORDER BY edate LIMIT 50")
 	upcoming = [event for event in eventList if event['edate'].encode('utf-8') > str(datetime.now())]
@@ -470,7 +470,7 @@ def resetMemberships():
 @is_admin
 def activateMembership(id, memberType):
 	# Extracts user membership status
-	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ? and priviledge !='ADMIN'", [id], True)
+	result = query_db("SELECT status,studentFirstName,studentLastName FROM users WHERE id = ? and privilege !='ADMIN'", [id], True)
 	if result:
 		if result['status'] == "MEMBER":
 			flash(result['studentFirstName'] + " " + result['studentLastName'] + " is already an active member.", 'warning')
@@ -581,12 +581,12 @@ def validSocialMediaUsername(sMedia, possibleURLs=()):
 @is_allowed_edit
 def edit_profile(id):
 	# Gets student's name and email by id.
-	result = query_db("SELECT studentFirstName,studentLastName,email,customPicture,biography,facebook,gituser,linkedin,priviledge FROM users WHERE id = ?", [id], True)
+	result = query_db("SELECT studentFirstName,studentLastName,email,customPicture,biography,facebook,gituser,linkedin,privilege FROM users WHERE id = ?", [id], True)
 	if result == None:
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# If admin, get different form with admin email.
-	isAdminAccount = True if result['priviledge'] == 'ADMIN' else False
+	isAdminAccount = True if result['privilege'] == 'ADMIN' else False
 	# If true the user 
 	if isAdminAccount:
 		courses = []
@@ -643,7 +643,7 @@ def edit_profile(id):
 				if email != result['email']:
 					fieldsToUpdate.append("email")
 					fieldValues.append(form.adminEmail.data)
-					connectedEmailAccount = query_db("SELECT id,studentFirstName,customPicture FROM users WHERE email=? and priviledge != 'ADMIN'", [email], True)
+					connectedEmailAccount = query_db("SELECT id,studentFirstName,customPicture FROM users WHERE email=? and privilege != 'ADMIN'", [email], True)
 					# Account exists
 					if connectedEmailAccount != None:
 						session['username'] = connectedEmailAccount['studentFirstName']
@@ -661,7 +661,7 @@ def edit_profile(id):
 									imgExtension = connectedEmailAccount['customPicture'].split('.')[-1]
 									copy2(fullpath, currentDirectiveFolder)
 									update("users", ["customPicture"], "id=?", (connectedEmailAccount['customPicture'], id))
-									if session['admin'] == int(id):
+									if session['admin'] and session['id'] == int(id): #TODO FIXED ERROR
 										session['customPicture'] = connectedEmailAccount['customPicture']
 					else:
 						session['username'] = "Admin"
@@ -691,7 +691,7 @@ def edit_profile(id):
 					f.save(imgPathCreated)
 					fieldsToUpdate.append("customPicture")
 					fieldValues.append(filename)
-					adminExists = query_db("SELECT id FROM users WHERE email=? and priviledge='ADMIN'", [result['email']], True)
+					adminExists = query_db("SELECT id FROM users WHERE email=? and privilege='ADMIN'", [result['email']], True)
 					if adminExists:
 						currentDirectiveFolder = getDirectiveFolder()
 						if userCustomPicture != "FALSE":
@@ -746,7 +746,7 @@ def edit_profile(id):
 		else:
 			flash('Password is incorrect', 'danger')
 		return redirect(url_for('edit_profile', id=id))
-	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, priviledge=isAdminAccount, id=int(id))
+	return render_template('edit_profile.html', form=form, courses=courses, userCourseIDs=userCourseIDs, majors=majors, userMajor=userMajor, privilege=isAdminAccount, id=int(id))
 # Loads the profile of the member that was selected
 @app.route('/user/<string:id>')
 def user_profile(id):
@@ -756,11 +756,11 @@ def user_profile(id):
 		flash('User does not exist in our database', 'danger')
 		return render_template('404.html')
 	# Check if the profile page belongs to the admin
-	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and priviledge='ADMIN'", (id,), True)
+	isAdminAccount = query_db("SELECT email FROM users WHERE id=? and privilege='ADMIN'", (id,), True)
 	# If it does, redirect to the page of the user with the same email account
 	if isAdminAccount:
 		# Checks if email exists in users table from non admin user
-		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and priviledge!='ADMIN'", (isAdminAccount['email'],), True)
+		hasSameEmail = query_db("SELECT id FROM users WHERE email=? and privilege!='ADMIN'", (isAdminAccount['email'],), True)
 		if hasSameEmail:
 			return redirect(url_for('user_profile', id=hasSameEmail['id']))
 		else:
